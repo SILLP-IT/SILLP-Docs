@@ -480,10 +480,31 @@ function updateProgressBar(pct) {
   if (label) label.textContent = Math.round(pct) + '%';
 }
 
+// --------------------------------------------------------------------------
+// showReportReady — makes the preview container visible, THEN sets the
+// iframe's src on the next paint (double requestAnimationFrame). This
+// matters specifically for iOS Safari: if the src is set in the same tick
+// that the container goes from display:none to visible, iOS Safari's
+// built-in PDF viewer measures a stale/zero height and freezes on page 1
+// of the PDF, ignoring the rest. Waiting for a real layout/paint cycle
+// first fixes that. Also wires up the "open in a new tab" fallback link,
+// which works on every platform as a guaranteed escape hatch.
+// --------------------------------------------------------------------------
 function showReportReady(fileUrl) {
   document.getElementById('reportWaiting').style.display = 'none';
   document.getElementById('reportReady').style.display = 'flex';
-  document.getElementById('reportFrame').src = fileUrl;
+
+  const link = document.getElementById('reportOpenNewTab');
+  if (link) {
+    link.href = fileUrl;
+    link.style.display = 'block';
+  }
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.getElementById('reportFrame').src = fileUrl;
+    });
+  });
 }
 
 async function handleApprove() {

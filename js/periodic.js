@@ -248,10 +248,30 @@ function updatePeriodicProgressBar(pct) {
   if (label) label.textContent = Math.round(pct) + '%';
 }
 
+// --------------------------------------------------------------------------
+// showPeriodicReportReady — same iOS Safari fix as script.js: the preview
+// container is made visible first, and the iframe's src is only set on the
+// next paint (double requestAnimationFrame). Setting src in the same tick
+// the container becomes visible makes iOS Safari's built-in PDF viewer
+// freeze on page 1 with a stale/zero height. Also wires up the "open in a
+// new tab" fallback link, which works on every platform as a guaranteed
+// escape hatch.
+// --------------------------------------------------------------------------
 function showPeriodicReportReady(fileUrl) {
   document.getElementById('perReportWaiting').style.display = 'none';
   document.getElementById('perReportReady').style.display = 'flex';
-  document.getElementById('perReportFrame').src = fileUrl;
+
+  const link = document.getElementById('perReportOpenNewTab');
+  if (link) {
+    link.href = fileUrl;
+    link.style.display = 'block';
+  }
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.getElementById('perReportFrame').src = fileUrl;
+    });
+  });
 }
 
 async function handlePeriodicApprove() {
