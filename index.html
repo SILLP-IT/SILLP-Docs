@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Studio Infinite — Site Visit Report</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="logo">
+      <img src="assets/studio-infinite-logo.svg" alt="Studio Infinite LLP">
+      <div class="logo-divider"></div>
+      <div class="logo-text">
+        <strong>SITE VISIT REPORT</strong>
+        <span>Field data capture</span>
+      </div>
+    </div>
+  </div>
+  <div class="header-accent"></div>
+</header>
+
+<!-- Blank landing screen — shown first, with the 3 report types centered -->
+<div class="tab-landing" id="tabLanding">
+  <div class="tab-landing-inner">
+    <p class="tab-landing-kicker">Choose a report type</p>
+    <div class="tab-landing-options">
+      <button type="button" class="tab-landing-card" data-tab="architectural" onclick="window.switchReportTab('architectural')">
+        <span class="tab-landing-card-title">Architectural Site Visit Report</span>
+      </button>
+      <button type="button" class="tab-landing-card" data-tab="multiple-issue" onclick="window.switchReportTab('multiple-issue')">
+        <span class="tab-landing-card-title">Multiple Aspects Site Report</span>
+      </button>
+      <button type="button" class="tab-landing-card" data-tab="periodic" onclick="window.switchReportTab('periodic')">
+        <span class="tab-landing-card-title">Periodic Site Visit Report</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Slim tab bar — only shown once a report form is open, to switch forms -->
+<nav class="report-tabs" id="reportTabs" style="display:none;">
+  <div class="report-tabs-inner">
+    <button type="button" class="report-tab-back" id="reportTabsBack" onclick="window.showReportLanding()">&#8592; All report types</button>
+    <button type="button" class="report-tab" data-tab="architectural" onclick="window.switchReportTab('architectural')">
+      Architectural Site Visit Report
+    </button>
+    <button type="button" class="report-tab" data-tab="multiple-issue" onclick="window.switchReportTab('multiple-issue')">
+      Multiple Aspects Site Report
+    </button>
+    <button type="button" class="report-tab" data-tab="periodic" onclick="window.switchReportTab('periodic')">
+      Periodic Site Visit Report
+    </button>
+  </div>
+</nav>
+
+<!-- ============================================================ -->
+<!-- TAB 1: Architectural Site Visit Report                       -->
+<!-- ============================================================ -->
+<div class="tab-panel" id="tab-architectural" style="display:none;">
+
+<main class="main">
+
+
+  <!-- Project Details -->
+  <div class="section">
+    <div class="section-hdr">  
+      <div class="bar"></div>
+      <svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Z"/><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 11h6M9 15h4"/></svg>
+      <span class="sec-label">Project details</span>
+    </div>
+    <div class="section-body">
+            <div class="field"><label>Project name</label>
+        <input type="text" id="proj-name" placeholder="e.g. ARK Vizag — Tower B"></div>
+      
+      <div class="field"><label>Block / Tower</label>
+        <input type="text" id="block-tower" placeholder="e.g. Tower B"></div>
+      <div class="field"><label>Project location</label>
+        <input type="text" id="location" placeholder="Tower B, Level 4, Podium"></div>
+      <div class="row-2">
+        <div class="field"><label>Report no.</label>
+          <input type="text" id="report-no" placeholder="e.g. 014"></div>
+        <div class="field"><label>Project no.</label>
+          <input type="text" id="project-no" placeholder="e.g. SI-2289"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label>Representative – Client name</label>
+          <input type="text" id="rep-client" placeholder="Name"></div>
+        <div class="field"><label>Representative – PMC name</label>
+          <input type="text" id="rep-pmc" placeholder="Name"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label>Date of visit</label>
+          <input type="date" id="visit-date"></div>
+        <div class="field"><label>Time</label>
+          <input type="time" id="visit-time"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label>Project architect</label>
+          <input type="text" id="project-architect" placeholder="Name"></div>
+        <div class="field"><label>Project coordinator</label>
+          <input type="text" id="project-coordinator" placeholder="Name"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Disciplines -->
+  <div class="section">
+    <div class="section-hdr">
+      <div class="bar"></div>
+      <svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5M3 8v10M21 8v10"/></svg>
+      <span class="sec-label">Disciplines inspected</span>
+      <!-- <span class="section-badge" id="disc-progress">0 / 10 checked</span> -->
+    </div>
+    <div class="section-body">
+      <div class="disc-wrap" id="disc-wrap">
+        <div class="disc-chip" onclick="toggleDisc(this)">Block Marking</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Brick Marking</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Finishes</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Mivan Slab Check</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Plinth Check Villas</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Projection Slab Check</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Ramp Check</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Slab Check Villas</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Terrace Mivan</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Plumb &amp; Fire</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Structural</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Civil</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">MEP</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Landscape</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">External works</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Safety</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Architecture</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Observations -->
+  <div class="section">
+    <div class="section-hdr">
+      <div class="bar"></div>
+      <svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
+      <span class="sec-label">Observations</span>
+    </div>
+    <div class="section-body">
+      <div id="obs-list"></div>
+      <button class="add-obs" onclick="addObs()">
+        + add observation
+      </button>
+      <p class="field-hint" style="margin-top:10px;text-align:center">One block per issue. Add as many as needed. Rough notes are fine.</p>
+    </div>
+  </div>
+
+  <div class="site-footer">
+    <p>STUDIO INFINITE LLP &nbsp; &nbsp; </p>
+  </div>
+
+</main>
+
+<!-- Report generation / preview / approve-reject overlay -->
+<div class="report-overlay" id="reportOverlay">
+
+  <!-- Waiting state -->
+  <div class="report-waiting" id="reportWaiting">
+    <div class="report-waiting-inner">
+      <div class="spinner"></div>
+      <h2>Generating your report</h2>
+      <p class="report-waiting-sub">This usually takes 1–2 minutes. Please don't close this page.</p>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
+      <p class="progress-pct" id="progressPct">0%</p>
+    </div>
+  </div>
+
+  <!-- Ready state: preview + approve/reject -->
+  <div class="report-ready" id="reportReady" style="display:none;">
+    <div class="report-ready-hdr">
+      <span>Report ready — please review</span>
+    </div>
+    <div class="report-frame-wrap">
+      <iframe id="reportFrame" class="report-frame" src="" title="Report preview"></iframe>
+    </div>
+    <div class="report-actions">
+      <button class="btn-reject" id="rejectBtn" onclick="handleReject()">Reject &amp; Redo</button>
+      <button class="btn-approve" id="approveBtn" onclick="handleApprove()">Approve</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export bar -->
+<div class="export-bar">
+  <div class="export-inner">
+    <button class="export-btn" id="submit-btn" onclick="handleSubmit()" disabled>
+      Submit
+    </button>
+    <p class="export-hint" id="submit-hint">Fill in all required fields to submit</p>
+  </div>
+</div>
+
+<!-- Output modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span>Claude prompt — ready to copy</span>
+      <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-hint">
+        Copy this prompt and paste it into Claude. Claude will produce the complete, professionally written site visit report ready for the PPTX template. If you have site photos, attach them to the same Claude message.
+      </div>
+      <div class="prompt-box" id="prompt-box"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-copy" onclick="copyPrompt()">Copy to clipboard</button>
+      <button class="btn-close" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input-camera" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="file-input-gallery" accept="image/*" multiple style="display:none">
+
+<!-- Photo source action sheet -->
+<div class="photo-sheet-overlay" id="photoSheet" onclick="closePhotoSheet()">
+  <div class="photo-sheet" onclick="event.stopPropagation()">
+    <button class="photo-sheet-btn" onclick="choosePhotoSource('camera')">
+      <span class="photo-sheet-ico">&#128247;</span> Take Photo
+    </button>
+    <button class="photo-sheet-btn" onclick="choosePhotoSource('gallery')">
+      <span class="photo-sheet-ico">&#128193;</span> Choose from Gallery
+    </button>
+    <button class="photo-sheet-cancel" onclick="closePhotoSheet()">Cancel</button>
+  </div>
+</div>
+
+<!-- Confirm modal -->
+<div class="confirm-overlay" id="confirmModal">
+  <div class="confirm-box">
+    <p class="confirm-title">Submit this report?</p>
+    <p class="confirm-text">Please confirm all details and photos are correct before submitting.</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-confirm" onclick="confirmSubmit()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Photo lightbox -->
+<div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">&#x2715;</button>
+  <img id="lightbox-img" src="" alt="Full size preview" onclick="event.stopPropagation()">
+</div>
+
+<!-- Discipline checklist modal -->
+<div class="modal-overlay" id="checklistModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span id="checklistTitle">Checklist</span>
+      <button class="modal-close" onclick="closeChecklist()">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="checklistBody"></div>
+   <div class="modal-actions">
+      <button class="btn-cancel" onclick="removeChecklist()">Remove</button>
+      <button class="btn-copy" id="checklistDoneBtn" onclick="completeChecklist()">Done</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="tab-panel" id="tab-multiple-issue" style="display:none;">
+
+<main class="main">
+
+  <!-- Pending submissions -->
+  <div class="section" id="ma-pending-section" style="display:none;">
+    <div class="section-hdr">
+      <div class="bar"></div>
+      <svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+      <span class="sec-label">Pending submissions</span>
+    </div>
+    <div class="section-body">
+      <p class="field-hint" style="margin-bottom:10px;">Saved on-site, not yet submitted. Tap one to continue — for example, to add the graphical site image back in the office.</p>
+      <div id="ma-pending-list"></div>
+    </div>
+  </div>
+
+  <!-- Project Details -->
+  <div class="section">
+    <div class="section-hdr">
+      <div class="bar"></div>
+      <svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Z"/><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 11h6M9 15h4"/></svg>
+      <span class="sec-label">Project details</span>
+    </div>
+    <div class="section-body">
+      <div class="field"><label>Project name</label>
+        <input type="text" id="ma-project-name" placeholder="e.g. ARK Vizag — Tower B"></div>
+      <div class="row-2">
+        <div class="field"><label>Project code</label>
+          <input type="text" id="ma-project-code" placeholder="SI-C-XXXX"></div>
+        <div class="field"><label>Site location</label>
+          <input type="text" id="ma-site-location" placeholder="Tower B, Level 4"></div>
+      </div>
+      <div class="row-2">
+        <div class="field"><label>Date</label>
+          <input type="date" id="ma-visit-date"></div>
+        <div class="field"><label>Time</label>
+          <input type="time" id="ma-visit-time"></div>
+      </div>
+      <div class="field"><label>Architect / consultants present</label>
+        <input type="text" id="ma-architects-present" placeholder="Names"></div>
+      <div class="row-2">
+        <div class="field"><label>Prepared by</label>
+          <input type="text" id="ma-prepared-by" placeholder="Name"></div>
+        <div class="field"><label>Approved by</label>
+          <input type="text" id="ma-approved-by" placeholder="Name"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Observations -->
+  <div class="section">
+    <div class="section-hdr">
+      <div class="bar"></div>
+      <svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
+      <span class="sec-label">Site observations</span>
+    </div>
+    <div class="section-body">
+      <div id="ma-obs-list"></div>
+      <button class="add-obs" onclick="addMaObs()">
+        + add observation
+      </button>
+      <p class="field-hint" style="margin-top:10px;text-align:center">Each observation is its own report slide — image, issue, location, and conclusion stay together and never merge with another observation. Add a colour site photo now; a graphical annotated image can be added later back at the office if needed, or added now too.</p>
+    </div>
+  </div>
+
+  <div class="site-footer">
+    <p>STUDIO INFINITE LLP &nbsp; &nbsp; </p>
+  </div>
+
+</main>
+
+<!-- Report generation / preview / approve-reject overlay (multi-aspect) -->
+<div class="report-overlay" id="maReportOverlay">
+  <div class="report-waiting" id="maReportWaiting">
+    <div class="report-waiting-inner">
+      <div class="spinner"></div>
+      <h2>Generating your report</h2>
+      <p class="report-waiting-sub">This usually takes 1–2 minutes. Please don't close this page.</p>
+      <div class="progress-track">
+        <div class="progress-fill" id="maProgressFill" style="width:0%"></div>
+      </div>
+      <p class="progress-pct" id="maProgressPct">0%</p>
+    </div>
+  </div>
+
+  <div class="report-ready" id="maReportReady" style="display:none;">
+    <div class="report-ready-hdr">
+      <span>Report ready — please review</span>
+    </div>
+    <div class="report-frame-wrap">
+      <iframe id="maReportFrame" class="report-frame" src="" title="Report preview"></iframe>
+    </div>
+    <div class="report-actions">
+      <button class="btn-reject" id="maRejectBtn" onclick="handleMaReject()">Reject &amp; Redo</button>
+      <button class="btn-approve" id="maApproveBtn" onclick="handleMaApprove()">Approve</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export bar (multi-aspect) -->
+<div class="export-bar">
+  <div class="export-inner" style="display:flex; gap:10px;">
+    <button class="export-btn" id="ma-pending-btn" onclick="handleMaSavePending()" style="background:var(--white); color:var(--slate); border:0.5px solid var(--stone);" disabled>
+      Save to Pending
+    </button>
+    <button class="export-btn" id="ma-submit-btn" onclick="handleMaSubmit()" disabled>
+      Submit
+    </button>
+  </div>
+  <p class="export-hint" id="ma-submit-hint">Fill in all required fields to continue</p>
+</div>
+
+<input type="file" id="ma-file-input-camera" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="ma-file-input-gallery" accept="image/*" multiple style="display:none">
+
+<!-- Photo source action sheet (multi-aspect) -->
+<div class="photo-sheet-overlay" id="maPhotoSheet" onclick="closeMaPhotoSheet()">
+  <div class="photo-sheet" onclick="event.stopPropagation()">
+    <button class="photo-sheet-btn" onclick="chooseMaPhotoSource('camera')">
+      <span class="photo-sheet-ico">&#128247;</span> Take Photo
+    </button>
+    <button class="photo-sheet-btn" onclick="chooseMaPhotoSource('gallery')">
+      <span class="photo-sheet-ico">&#128193;</span> Choose from Gallery
+    </button>
+    <button class="photo-sheet-cancel" onclick="closeMaPhotoSheet()">Cancel</button>
+  </div>
+</div>
+
+<!-- Confirm modal (multi-aspect submit) -->
+<div class="confirm-overlay" id="maConfirmModal">
+  <div class="confirm-box">
+    <p class="confirm-title">Submit this report?</p>
+    <p class="confirm-text">Please confirm all details and photos are correct before submitting.</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel" onclick="closeMaConfirm()">Cancel</button>
+      <button class="btn-confirm" onclick="confirmMaSubmit()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+</div>
+<!-- END TAB 2: tab-multiple-issue -->
+
+<!-- ============================================================ -->
+<!-- TAB 3: Periodic Site Visit Report                             -->
+<!-- ============================================================ -->
+<div class="tab-panel" id="tab-periodic" style="display:none;">
+
+<main class="main">
+
+  <!-- Project Details -->
+  <div class="section">
+    <div class="section-hdr">
+      <div class="bar"></div>
+      <svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Z"/><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 11h6M9 15h4"/></svg>
+      <span class="sec-label">Project details</span>
+    </div>
+    <div class="section-body">
+      <div class="field"><label>Project name</label>
+        <input type="text" id="per-project-name" placeholder="e.g. ARK Vizag — Tower B"></div>
+      <div class="row-2">
+        <div class="field"><label>Project code</label>
+          <input type="text" id="per-project-code" placeholder="SI-C-XXXX"></div>
+        <div class="field"><label>Date of visit</label>
+          <input type="date" id="per-visit-date"></div>
+      </div>
+      <div class="field"><label>Site address</label>
+        <input type="text" id="per-site-address" placeholder="Full site address"></div>
+      <div class="row-2">
+        <div class="field"><label>Project architect</label>
+          <input type="text" id="per-project-architect" placeholder="Name"></div>
+        <div class="field"><label>Site engineer</label>
+          <input type="text" id="per-site-engineer" placeholder="Consultant / site engineer name"></div>
+      </div>
+      <div class="field"><label>Prepared by</label>
+        <input type="text" id="per-prepared-by" placeholder="Name"></div>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="section">
+    <div class="section-hdr">
+      <div class="bar"></div>
+      <svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5M3 8v10M21 8v10"/></svg>
+      <span class="sec-label">Progress &amp; clarifications</span>
+    </div>
+    <div class="section-body">
+      <div class="field"><label>Progress of ongoing work</label>
+        <textarea id="per-progress-notes" placeholder="Describe progress since the last visit. Rough notes are fine." style="min-height:110px"></textarea></div>
+      <div class="field"><label>Pending clarifications from the architect team</label>
+        <textarea id="per-pending-clarifications" placeholder="List any open questions or items awaiting clarification." style="min-height:90px"></textarea></div>
+    </div>
+  </div>
+
+  <!-- Site Photos -->
+  <div class="section">
+    <div class="section-hdr">
+      <div class="bar"></div>
+      <svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
+      <span class="sec-label">Site photos</span>
+    </div>
+    <div class="section-body">
+      <div class="photo-drop" onclick="triggerPeriodicPhoto()" id="per-drop">
+        <span class="ico">&#128247;</span>
+        <p>Tap to add site photos</p>
+        <p class="hint">You can select multiple at once</p>
+      </div>
+      <div class="photo-grid" id="per-photo-preview"></div>
+      <p class="field-hint">Add as many photos as needed for this visit.</p>
+    </div>
+  </div>
+
+  <div class="site-footer">
+    <p>STUDIO INFINITE LLP &nbsp; &nbsp; </p>
+  </div>
+
+</main>
+
+<!-- Report generation / preview / approve-reject overlay (periodic) -->
+<div class="report-overlay" id="perReportOverlay">
+  <div class="report-waiting" id="perReportWaiting">
+    <div class="report-waiting-inner">
+      <div class="spinner"></div>
+      <h2>Generating your report</h2>
+      <p class="report-waiting-sub">This usually takes 1–2 minutes. Please don't close this page.</p>
+      <div class="progress-track">
+        <div class="progress-fill" id="perProgressFill" style="width:0%"></div>
+      </div>
+      <p class="progress-pct" id="perProgressPct">0%</p>
+    </div>
+  </div>
+
+  <div class="report-ready" id="perReportReady" style="display:none;">
+    <div class="report-ready-hdr">
+      <span>Report ready — please review</span>
+    </div>
+    <div class="report-frame-wrap">
+      <iframe id="perReportFrame" class="report-frame" src="" title="Report preview"></iframe>
+    </div>
+    <div class="report-actions">
+      <button class="btn-reject" id="perRejectBtn" onclick="handlePeriodicReject()">Reject &amp; Redo</button>
+      <button class="btn-approve" id="perApproveBtn" onclick="handlePeriodicApprove()">Approve</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export bar (periodic) -->
+<div class="export-bar">
+  <div class="export-inner">
+    <button class="export-btn" id="per-submit-btn" onclick="handlePeriodicSubmit()" disabled>
+      Submit
+    </button>
+    <p class="export-hint" id="per-submit-hint">Fill in all required fields to submit</p>
+  </div>
+</div>
+
+<input type="file" id="per-file-input-camera" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="per-file-input-gallery" accept="image/*" multiple style="display:none">
+
+<!-- Photo source action sheet (periodic) -->
+<div class="photo-sheet-overlay" id="perPhotoSheet" onclick="closePeriodicPhotoSheet()">
+  <div class="photo-sheet" onclick="event.stopPropagation()">
+    <button class="photo-sheet-btn" onclick="choosePeriodicPhotoSource('camera')">
+      <span class="photo-sheet-ico">&#128247;</span> Take Photo
+    </button>
+    <button class="photo-sheet-btn" onclick="choosePeriodicPhotoSource('gallery')">
+      <span class="photo-sheet-ico">&#128193;</span> Choose from Gallery
+    </button>
+    <button class="photo-sheet-cancel" onclick="closePeriodicPhotoSheet()">Cancel</button>
+  </div>
+</div>
+
+<!-- Confirm modal (periodic) -->
+<div class="confirm-overlay" id="perConfirmModal">
+  <div class="confirm-box">
+    <p class="confirm-title">Submit this report?</p>
+    <p class="confirm-text">Please confirm all details and photos are correct before submitting.</p>
+    <div class="confirm-actions">
+      <button class="btn-cancel" onclick="closePeriodicConfirm()">Cancel</button>
+      <button class="btn-confirm" onclick="confirmPeriodicSubmit()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+</div>
+<!-- END TAB 3: tab-periodic -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js?v=3"></script>
+<script src="js/tabs.js?v=3"></script>
+<script src="js/script.js?v=3"></script>
+<script src="js/periodic.js?v=1"></script>
+<script src="js/multi-aspect.js?v=1"></script>
+</body>
+</html>
