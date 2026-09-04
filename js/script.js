@@ -4,8 +4,14 @@ let currentPhotoTarget = null;
 let exportedPrompt = '';
 const APPROVE_WEBHOOK_URL = 'https://studioinfinite.app.n8n.cloud/webhook/approve-report';
 const REJECT_WEBHOOK_URL  = 'https://studioinfinite.app.n8n.cloud/webhook/reject-report';
+const ARCH_TABLE = 'site_visits';
 let currentVisitId = null;
+let currentDraftId = null;   // set when resuming a pending draft; null for a fresh submission
 let pollInterval = null;
+
+// Severity value -> button class, used when restoring a resumed draft's UI state
+const SEV_CLASS = { 'Critical': 'sev-critical', 'Major': 'sev-major', 'Minor': 'sev-minor', 'Observation': 'sev-obs' };
+
 // Discipline checklists — add more disciplines here the same way (e.g. 'Brick Marking': [...])
 const disciplineChecklists = {
   'Block Marking': [
@@ -248,6 +254,22 @@ function updateDisciplineProgress() {
   badge.textContent = done + ' / ' + total + ' checked';
 }
 
+// --------------------------------------------------------------------------
+// Restore checklistAnswers + chip UI state from a resumed draft's saved
+// checklist_data (used by resumeDraft()).
+// --------------------------------------------------------------------------
+function restoreChecklistAnswers(data) {
+  checklistAnswers = data && typeof data === 'object' ? data : {};
+  document.querySelectorAll('.disc-chip').forEach(chip => {
+    const name = chip.textContent.trim();
+    const answers = checklistAnswers[name];
+    const hasAnyAnswer = answers && Object.values(answers).some(a => a && a.answer);
+    chip.classList.toggle('completed', !!hasAnyAnswer);
+    chip.classList.remove('active');
+  });
+  updateDisciplineProgress();
+}
+
 function openChecklist(name) {
   const questions = disciplineChecklists[name];
   if (!questions) return;
@@ -311,17 +333,23 @@ function closeConfirm() {
 }
 
 // --------------------------------------------------------------------------
-// Supabase submission — uploads all observation photos to Storage, then
-// inserts one row into the single "site_visits" table (checklist answers +
-// observations, each with its uploaded photo URLs).
+// Supabase submission — uploads all NEW observation photos to Storage
+// (existing ones already have a URL and are passed through untouched), then
+// inserts or updates one row in "site_visits" (checklist answers +
+// observations, each with its photo URLs).
 // --------------------------------------------------------------------------
 const STORAGE_BUCKET = 'site-photos';
 
-// Uploads every photo attached to one observation and returns their public URLs.
+// Uploads every NEW photo attached to one observation and returns the full
+// list of public URLs for that observation (existing photos pass through).
 async function uploadObsPhotos(obsId) {
   const photos = (obsData[obsId] && obsData[obsId].photos) || [];
   const urls = [];
   for (const p of photos) {
+    if (p.type === 'existing') {
+      urls.push(p.url);
+      continue;
+    }
     const safeName = p.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
     const path = `obs-${obsId}/${Date.now()}-${safeName}`;
     const { error } = await supabaseClient
@@ -376,7 +404,7 @@ async function buildObservationsPayload() {
   return result;
 }
 
-function buildPayload(observationsPayload) {
+function buildPayload(observationsPayload, status) {
   return {
 
     project_name: getVal('proj-name'),
@@ -392,8 +420,137 @@ function buildPayload(observationsPayload) {
     project_coordinator: getVal('project-coordinator'),
     checklist_data: checklistAnswers,
     observations: observationsPayload,
-    status: 'submitted'
+    status: status || 'submitted'
   };
+}
+
+// --------------------------------------------------------------------------
+// Save to Pending — insert (first save) or update (already-a-draft) with
+// status 'pending'. Does NOT trigger the n8n automation (only a real
+// Submit, transitioning status into 'submitted', does that).
+// --------------------------------------------------------------------------
+async function handleSavePending() {
+  const btn = document.getElementById('pending-btn');
+  if (!btn) return;
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    if (!supabaseClient) throw new Error('Supabase client not initialized.');
+
+    const observationsPayload = await buildObservationsPayload();
+    const payload = buildPayload(observationsPayload, 'pending');
+
+    if (currentDraftId) {
+      const { error } = await supabaseClient
+        .from(ARCH_TABLE)
+        .update(payload)
+        .eq('id', currentDraftId);
+      if (error) throw error;
+    } else {
+      const { data: inserted, error } = await supabaseClient
+        .from(ARCH_TABLE)
+        .insert([payload])
+        .select('id');
+      if (error) throw error;
+      currentDraftId = inserted[0].id;
+    }
+
+    alert('Saved. You can find this under "Pending submissions" to continue later.');
+    btn.disabled = false;
+    btn.textContent = originalText;
+    loadPendingList();
+
+  } catch (err) {
+    console.error('Save to pending failed:', err);
+    alert('Could not save: ' + (err.message || 'Unknown error'));
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+// --------------------------------------------------------------------------
+// Pending list (fetch + render + resume)
+// --------------------------------------------------------------------------
+async function loadPendingList() {
+  if (!supabaseClient) return;
+  try {
+    const { data, error } = await supabaseClient
+      .from(ARCH_TABLE)
+      .select('id, project_name, visit_date, visit_time, created_at')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const section = document.getElementById('pending-section');
+    const list = document.getElementById('pending-list');
+    if (!section || !list) return;
+
+    if (!data || data.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = 'block';
+    list.innerHTML = data.map(row => `
+      <div class="obs-card" style="cursor:pointer;" onclick="resumeDraft('${row.id}')">
+        <div class="obs-card-hdr" style="border-bottom:none;">
+          <span class="obs-num">
+            <span class="obs-dot"></span>${row.project_name || 'Untitled'}
+          </span>
+          <span class="field-hint">${row.visit_date || ''} ${row.visit_time || ''}</span>
+        </div>
+      </div>
+    `).join('');
+
+  } catch (err) {
+    console.error('Failed to load pending list:', err);
+  }
+}
+
+async function resumeDraft(id) {
+  try {
+    const { data, error } = await supabaseClient
+      .from(ARCH_TABLE)
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) throw error;
+
+    // Reset current form state
+    document.getElementById('obs-list').innerHTML = '';
+    obsData = {};
+    obsCount = 0;
+    currentDraftId = id;
+
+    document.getElementById('proj-name').value = data.project_name || '';
+    document.getElementById('block-tower').value = data.block_tower || '';
+    document.getElementById('location').value = data.location || '';
+    document.getElementById('report-no').value = data.report_no || '';
+    document.getElementById('project-no').value = data.project_no || '';
+    document.getElementById('rep-client').value = data.representative_client_name || '';
+    document.getElementById('rep-pmc').value = data.representative_pmc_name || '';
+    document.getElementById('visit-date').value = data.visit_date || '';
+    document.getElementById('visit-time').value = data.visit_time || '';
+    document.getElementById('project-architect').value = data.project_architect || '';
+    document.getElementById('project-coordinator').value = data.project_coordinator || '';
+
+    restoreChecklistAnswers(data.checklist_data || {});
+
+    const observations = Array.isArray(data.observations) ? data.observations : [];
+    observations.forEach(obs => addObs(obs));
+
+    if (observations.length === 0) renderEmptyState();
+    updateSubmitState();
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  } catch (err) {
+    console.error('Failed to resume draft:', err);
+    alert('Could not load this saved submission: ' + (err.message || 'Unknown error'));
+  }
 }
 
 async function confirmSubmit() {
@@ -414,15 +571,26 @@ async function confirmSubmit() {
     if (!supabaseClient) throw new Error('Supabase client not initialized.');
 
     const observationsPayload = await buildObservationsPayload();
-    const payload = buildPayload(observationsPayload);
+    const payload = buildPayload(observationsPayload, 'submitted');
 
-    const { data: inserted, error } = await supabaseClient
-      .from('site_visits')
-      .insert([payload])
-      .select('id');
-    if (error) throw error;
+    let visitId;
+    if (currentDraftId) {
+      const { error } = await supabaseClient
+        .from(ARCH_TABLE)
+        .update(payload)
+        .eq('id', currentDraftId);
+      if (error) throw error;
+      visitId = currentDraftId;
+    } else {
+      const { data: inserted, error } = await supabaseClient
+        .from(ARCH_TABLE)
+        .insert([payload])
+        .select('id');
+      if (error) throw error;
+      visitId = inserted[0].id;
+    }
 
-    currentVisitId = inserted[0].id;
+    currentVisitId = visitId;
     startReportWait();
 
   } catch (err) {
@@ -455,7 +623,7 @@ function startReportWait() {
 
     try {
       const { data, error } = await supabaseClient
-        .from('site_visits')
+        .from(ARCH_TABLE)
         .select('final_file_url, status')
         .eq('id', currentVisitId)
         .single();
@@ -576,13 +744,21 @@ function renderEmptyState() {
   }
 }
 
-function addObs() {
+// addObs(existing) — existing is optional; when provided (resuming a saved
+// draft), the new observation card is pre-filled with its saved values
+// (including photos, marked type:'existing' so they aren't re-uploaded).
+function addObs(existing) {
   const emptyEl = document.querySelector('#obs-list .empty-state');
   if (emptyEl) emptyEl.remove();
 
   obsCount++;
   const id = obsCount;
-  obsData[id] = { severity: '', photos: [] };
+  obsData[id] = {
+    severity: (existing && existing.severity) || '',
+    photos: existing && Array.isArray(existing.photos)
+      ? existing.photos.map(url => ({ type: 'existing', url, dataUrl: url }))
+      : []
+  };
 
   const div = document.createElement('div');
   div.className = 'obs-card';
@@ -661,6 +837,25 @@ function addObs() {
   `;
     document.getElementById('obs-list').appendChild(div);
   div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  if (existing) {
+    document.getElementById('caption-' + id).value = existing.element_location || '';
+    document.getElementById('issue-' + id).value = existing.issue_description || '';
+    document.getElementById('drw-' + id).value = existing.drawing_ref || '';
+    document.getElementById('contractor-' + id).value = existing.action_taken_by || '';
+    document.getElementById('action-' + id).value = existing.action_required || '';
+    document.getElementById('owner-' + id).value = existing.action_owner || '';
+    document.getElementById('target-' + id).value = existing.target_date || '';
+    if (existing.obs_status) document.getElementById('status-' + id).value = existing.obs_status;
+    document.getElementById('resolution-' + id).value = existing.resolution_notes || '';
+    renderPhotoGrid(id);
+
+    if (existing.severity && SEV_CLASS[existing.severity]) {
+      const sevBtn = div.querySelector('.' + SEV_CLASS[existing.severity]);
+      if (sevBtn) setSev(id, existing.severity, sevBtn);
+    }
+  }
+
   updateSubmitState();
 }
 
@@ -698,7 +893,7 @@ function handlePhotoFiles(fileList) {
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = function(ev) {
-      obsData[id].photos.push({ file: file, name: file.name, dataUrl: ev.target.result });
+      obsData[id].photos.push({ type: 'new', file: file, name: file.name, dataUrl: ev.target.result });
       renderPhotoGrid(id);
     };
     reader.readAsDataURL(file);
@@ -754,10 +949,11 @@ function getVal(id) {
 }
 
 // --------------------------------------------------------------------------
-// Form validation — Submit stays disabled until every required field is
-// filled. Project Details are always required. Each observation, once
-// added, brings its own required fields (element/location, severity,
-// discipline, issue description, action required, action owner, target date).
+// Form validation — Submit (and Save to Pending) stay disabled until every
+// required field is filled. Project Details are always required. Each
+// observation, once added, brings its own required fields (element/
+// location, severity, discipline, issue description, action required,
+// action owner, target date).
 // --------------------------------------------------------------------------
 const REQUIRED_MAIN_FIELDS = [
   'proj-name', 'block-tower', 'location', 'report-no', 'project-no',
@@ -787,10 +983,12 @@ function isFormValid() {
 
 function updateSubmitState() {
   const btn = document.getElementById('submit-btn');
+  const pendingBtn = document.getElementById('pending-btn');
   const hint = document.getElementById('submit-hint');
   if (!btn) return;
   const valid = isFormValid();
   btn.disabled = !valid;
+  if (pendingBtn) pendingBtn.disabled = !valid;
   if (hint) hint.classList.toggle('show', !valid);
 }
 
@@ -829,3 +1027,4 @@ document.getElementById('modal').addEventListener('click', function(e) {
 updateDisciplineProgress();
 renderEmptyState();
 updateSubmitState();
+loadPendingList();

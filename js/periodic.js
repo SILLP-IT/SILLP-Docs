@@ -3,19 +3,23 @@
 // (periodic_site_visits), own storage path, own submit/poll/approve/reject
 // flow. Kept fully separate from the architectural form's script.js so
 // nothing here can collide with its IDs or global state.
+//
+// Supports the same two-stage flow as Multiple Aspects: fill on-site and
+// either Submit directly, or Save to Pending if some detail needs adding
+// later back at the office; the office user can then resume that draft
+// from the Pending submissions list (which reloads the whole form exactly
+// as saved, including photos) and Submit from there.
 // --------------------------------------------------------------------------
 
-// TODO: fill these in once the periodic n8n webhook workflow is built
-// (Approve / Reject webhook nodes, mirroring APPROVE_WEBHOOK_URL /
-// REJECT_WEBHOOK_URL in script.js).
 const PERIODIC_APPROVE_WEBHOOK_URL = 'https://studioinfinite.app.n8n.cloud/webhook/approve-periodic-report';
 const PERIODIC_REJECT_WEBHOOK_URL  = 'https://studioinfinite.app.n8n.cloud/webhook/reject-periodic-report';
 
 const PERIODIC_TABLE = 'periodic_site_visits';
 const PERIODIC_STORAGE_BUCKET = 'site-photos'; // reuses the same bucket, under a periodic/ prefix
 
-let periodicPhotos = [];       // [{ file, name, dataUrl }]
+let periodicPhotos = [];       // [{ type: 'new'|'existing', file?, name?, url?, dataUrl }]
 let periodicCurrentVisitId = null;
+let periodicCurrentDraftId = null;   // set when resuming a pending draft; null for a fresh submission
 let periodicPollInterval = null;
 
 // --------------------------------------------------------------------------
@@ -44,7 +48,7 @@ function handlePeriodicPhotoFiles(fileList) {
   files.forEach(file => {
     const reader = new FileReader();
     reader.onload = function (ev) {
-      periodicPhotos.push({ file: file, name: file.name, dataUrl: ev.target.result });
+      periodicPhotos.push({ type: 'new', file: file, name: file.name, dataUrl: ev.target.result });
       renderPeriodicPhotoGrid();
       updatePeriodicSubmitState();
     };
@@ -101,10 +105,12 @@ function isPeriodicFormValid() {
 
 function updatePeriodicSubmitState() {
   const btn = document.getElementById('per-submit-btn');
+  const pendingBtn = document.getElementById('per-pending-btn');
   const hint = document.getElementById('per-submit-hint');
   if (!btn) return;
   const valid = isPeriodicFormValid();
   btn.disabled = !valid;
+  if (pendingBtn) pendingBtn.disabled = !valid;
   if (hint) hint.classList.toggle('show', !valid);
 }
 
@@ -117,19 +123,16 @@ PERIODIC_REQUIRED_FIELDS.forEach(id => {
 });
 
 // --------------------------------------------------------------------------
-// Submit flow
+// Upload NEW photos only (existing ones already have a URL and pass
+// through untouched) and return the full flat list of public URLs.
 // --------------------------------------------------------------------------
-function handlePeriodicSubmit() {
-  document.getElementById('perConfirmModal').classList.add('open');
-}
-
-function closePeriodicConfirm() {
-  document.getElementById('perConfirmModal').classList.remove('open');
-}
-
 async function uploadPeriodicPhotos() {
   const urls = [];
   for (const p of periodicPhotos) {
+    if (p.type === 'existing') {
+      urls.push(p.url);
+      continue;
+    }
     const safeName = p.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
     const path = `periodic/${Date.now()}-${safeName}`;
     const { error } = await supabaseClient
@@ -149,7 +152,7 @@ async function uploadPeriodicPhotos() {
   return urls;
 }
 
-function buildPeriodicPayload(photoUrls) {
+function buildPeriodicPayload(photoUrls, status) {
   return {
     project_name: periodicGetVal('per-project-name'),
     project_code: periodicGetVal('per-project-code'),
@@ -161,8 +164,140 @@ function buildPeriodicPayload(photoUrls) {
     progress_notes: periodicGetVal('per-progress-notes'),
     pending_clarifications: periodicGetVal('per-pending-clarifications') || null,
     photos: photoUrls,
-    status: 'submitted'
+    status: status || 'submitted'
   };
+}
+
+// --------------------------------------------------------------------------
+// Save to Pending — insert (first save) or update (already-a-draft) with
+// status 'pending'. Does NOT trigger the n8n automation (only a real
+// Submit, transitioning status into 'submitted', does that).
+// --------------------------------------------------------------------------
+async function handlePeriodicSavePending() {
+  const btn = document.getElementById('per-pending-btn');
+  if (!btn) return;
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    if (!supabaseClient) throw new Error('Supabase client not initialized.');
+
+    const photoUrls = await uploadPeriodicPhotos();
+    const payload = buildPeriodicPayload(photoUrls, 'pending');
+
+    if (periodicCurrentDraftId) {
+      const { error } = await supabaseClient
+        .from(PERIODIC_TABLE)
+        .update(payload)
+        .eq('id', periodicCurrentDraftId);
+      if (error) throw error;
+    } else {
+      const { data: inserted, error } = await supabaseClient
+        .from(PERIODIC_TABLE)
+        .insert([payload])
+        .select('id');
+      if (error) throw error;
+      periodicCurrentDraftId = inserted[0].id;
+    }
+
+    alert('Saved. You can find this under "Pending submissions" to continue later.');
+    btn.disabled = false;
+    btn.textContent = originalText;
+    loadPeriodicPendingList();
+
+  } catch (err) {
+    console.error('Save to pending failed:', err);
+    alert('Could not save: ' + (err.message || 'Unknown error'));
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+// --------------------------------------------------------------------------
+// Pending list (fetch + render + resume)
+// --------------------------------------------------------------------------
+async function loadPeriodicPendingList() {
+  if (!supabaseClient) return;
+  try {
+    const { data, error } = await supabaseClient
+      .from(PERIODIC_TABLE)
+      .select('id, project_name, visit_date, created_at')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const section = document.getElementById('per-pending-section');
+    const list = document.getElementById('per-pending-list');
+    if (!section || !list) return;
+
+    if (!data || data.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+
+    section.style.display = 'block';
+    list.innerHTML = data.map(row => `
+      <div class="obs-card" style="cursor:pointer;" onclick="resumePeriodicDraft('${row.id}')">
+        <div class="obs-card-hdr" style="border-bottom:none;">
+          <span class="obs-num">
+            <span class="obs-dot"></span>${row.project_name || 'Untitled'}
+          </span>
+          <span class="field-hint">${row.visit_date || ''}</span>
+        </div>
+      </div>
+    `).join('');
+
+  } catch (err) {
+    console.error('Failed to load pending list:', err);
+  }
+}
+
+async function resumePeriodicDraft(id) {
+  try {
+    const { data, error } = await supabaseClient
+      .from(PERIODIC_TABLE)
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) throw error;
+
+    periodicCurrentDraftId = id;
+
+    document.getElementById('per-project-name').value = data.project_name || '';
+    document.getElementById('per-project-code').value = data.project_code || '';
+    document.getElementById('per-site-address').value = data.site_address || '';
+    document.getElementById('per-visit-date').value = data.visit_date || '';
+    document.getElementById('per-project-architect').value = data.project_architect || '';
+    document.getElementById('per-site-engineer').value = data.site_engineer || '';
+    document.getElementById('per-prepared-by').value = data.prepared_by || '';
+    document.getElementById('per-progress-notes').value = data.progress_notes || '';
+    document.getElementById('per-pending-clarifications').value = data.pending_clarifications || '';
+
+    periodicPhotos = Array.isArray(data.photos)
+      ? data.photos.map(url => ({ type: 'existing', url, dataUrl: url }))
+      : [];
+    renderPeriodicPhotoGrid();
+
+    updatePeriodicSubmitState();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  } catch (err) {
+    console.error('Failed to resume draft:', err);
+    alert('Could not load this saved submission: ' + (err.message || 'Unknown error'));
+  }
+}
+
+// --------------------------------------------------------------------------
+// Submit flow
+// --------------------------------------------------------------------------
+function handlePeriodicSubmit() {
+  document.getElementById('perConfirmModal').classList.add('open');
+}
+
+function closePeriodicConfirm() {
+  document.getElementById('perConfirmModal').classList.remove('open');
 }
 
 async function confirmPeriodicSubmit() {
@@ -183,15 +318,26 @@ async function confirmPeriodicSubmit() {
     if (!supabaseClient) throw new Error('Supabase client not initialized.');
 
     const photoUrls = await uploadPeriodicPhotos();
-    const payload = buildPeriodicPayload(photoUrls);
+    const payload = buildPeriodicPayload(photoUrls, 'submitted');
 
-    const { data: inserted, error } = await supabaseClient
-      .from(PERIODIC_TABLE)
-      .insert([payload])
-      .select('id');
-    if (error) throw error;
+    let visitId;
+    if (periodicCurrentDraftId) {
+      const { error } = await supabaseClient
+        .from(PERIODIC_TABLE)
+        .update(payload)
+        .eq('id', periodicCurrentDraftId);
+      if (error) throw error;
+      visitId = periodicCurrentDraftId;
+    } else {
+      const { data: inserted, error } = await supabaseClient
+        .from(PERIODIC_TABLE)
+        .insert([payload])
+        .select('id');
+      if (error) throw error;
+      visitId = inserted[0].id;
+    }
 
-    periodicCurrentVisitId = inserted[0].id;
+    periodicCurrentVisitId = visitId;
     startPeriodicReportWait();
 
   } catch (err) {
@@ -333,3 +479,4 @@ async function handlePeriodicReject() {
 // Initial state
 renderPeriodicPhotoGrid();
 updatePeriodicSubmitState();
+loadPeriodicPendingList();

@@ -63,6 +63,18 @@
 
 <main class="main">
 
+  <!-- Pending submissions -->
+  <div class="section" id="pending-section" style="display:none;">
+    <div class="section-hdr">
+      <div class="bar"></div>
+      <svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+      <span class="sec-label">Pending submissions</span>
+    </div>
+    <div class="section-body">
+      <p class="field-hint" style="margin-bottom:10px;">Saved on-site, not yet submitted. Tap one to continue.</p>
+      <div id="pending-list"></div>
+    </div>
+  </div>
 
   <!-- Project Details -->
   <div class="section">
@@ -195,12 +207,15 @@
 
 <!-- Export bar -->
 <div class="export-bar">
-  <div class="export-inner">
+  <div class="export-inner" style="display:flex; gap:10px;">
+    <button class="export-btn" id="pending-btn" onclick="handleSavePending()" style="background:var(--white); color:var(--slate); border:0.5px solid var(--stone);" disabled>
+      Save to Pending
+    </button>
     <button class="export-btn" id="submit-btn" onclick="handleSubmit()" disabled>
       Submit
     </button>
-    <p class="export-hint" id="submit-hint">Fill in all required fields to submit</p>
   </div>
+  <p class="export-hint" id="submit-hint">Fill in all required fields to continue</p>
 </div>
 
 <!-- Output modal -->
@@ -428,6 +443,19 @@
 
 <main class="main">
 
+  <!-- Pending submissions -->
+  <div class="section" id="per-pending-section" style="display:none;">
+    <div class="section-hdr">
+      <div class="bar"></div>
+      <svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
+      <span class="sec-label">Pending submissions</span>
+    </div>
+    <div class="section-body">
+      <p class="field-hint" style="margin-bottom:10px;">Saved on-site, not yet submitted. Tap one to continue.</p>
+      <div id="per-pending-list"></div>
+    </div>
+  </div>
+
   <!-- Project Details -->
   <div class="section">
     <div class="section-hdr">
@@ -529,12 +557,15 @@
 
 <!-- Export bar (periodic) -->
 <div class="export-bar">
-  <div class="export-inner">
+  <div class="export-inner" style="display:flex; gap:10px;">
+    <button class="export-btn" id="per-pending-btn" onclick="handlePeriodicSavePending()" style="background:var(--white); color:var(--slate); border:0.5px solid var(--stone);" disabled>
+      Save to Pending
+    </button>
     <button class="export-btn" id="per-submit-btn" onclick="handlePeriodicSubmit()" disabled>
       Submit
     </button>
-    <p class="export-hint" id="per-submit-hint">Fill in all required fields to submit</p>
   </div>
+  <p class="export-hint" id="per-submit-hint">Fill in all required fields to continue</p>
 </div>
 
 <input type="file" id="per-file-input-camera" accept="image/*" capture="environment" style="display:none">
@@ -545,7 +576,7 @@
   <div class="photo-sheet" onclick="event.stopPropagation()">
     <button class="photo-sheet-btn" onclick="choosePeriodicPhotoSource('camera')">
       <span class="photo-sheet-ico">&#128247;</span> Take Photo
-    </button>
+    </button>  
     <button class="photo-sheet-btn" onclick="choosePeriodicPhotoSource('gallery')">
       <span class="photo-sheet-ico">&#128193;</span> Choose from Gallery
     </button>
@@ -571,8 +602,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js?v=3"></script>
 <script src="js/tabs.js?v=3"></script>
-<script src="js/script.js?v=3"></script>
-<script src="js/periodic.js?v=1"></script>
+<script src="js/script.js?v=4"></script>
+<script src="js/periodic.js?v=2"></script>
 <script src="js/multi-aspect.js?v=1"></script>
 </body>
 </html>
