@@ -371,6 +371,8 @@ async function uploadObsPhotos(obsId) {
 
 // Uploads photos for every observation and returns the full observations array
 // (ready to be stored as jsonb) with photo URLs instead of local file objects.
+// NOTE: "Action owner" has been removed from the form entirely — there is no
+// action_owner field/value anywhere in this payload any more.
 async function buildObservationsPayload() {
   const result = [];
   for (const id of Object.keys(obsData)) {
@@ -378,7 +380,6 @@ async function buildObservationsPayload() {
     const issue      = getVal('issue-' + id);
     const contractor = getVal('contractor-' + id);
     const action     = getVal('action-' + id);
-    const owner      = getVal('owner-' + id);
     const target     = getVal('target-' + id);
     const status     = getVal('status-' + id);
     const severity   = obsData[id] ? obsData[id].severity : '';
@@ -391,7 +392,6 @@ async function buildObservationsPayload() {
       issue_description: issue,
       action_taken_by: contractor,
       action_required: action,
-      action_owner: owner,
       target_date: target || null,
       obs_status: status,
       photos: photoUrls
@@ -740,9 +740,25 @@ function renderEmptyState() {
   }
 }
 
+// --------------------------------------------------------------------------
+// updateObsFieldVisibility — shows/hides "Action taken by", "Action
+// required", "Target completion date", and "Status" for one observation
+// card based on its chosen severity.
+//   Critical / Major / Minor -> all four shown
+//   Observation (or no severity chosen yet) -> all four hidden; only
+//   "Issue / observation" remains visible for that observation.
+// --------------------------------------------------------------------------
+function updateObsFieldVisibility(id, severity) {
+  const extra = document.getElementById('extra-' + id);
+  if (!extra) return;
+  const showExtra = (severity === 'Critical' || severity === 'Major' || severity === 'Minor');
+  extra.style.display = showExtra ? 'block' : 'none';
+}
+
 // addObs(existing) — existing is optional; when provided (resuming a saved
 // draft), the new observation card is pre-filled with its saved values
 // (including photos, marked type:'existing' so they aren't re-uploaded).
+// NOTE: "Action owner" has been removed from this form entirely.
 function addObs(existing) {
   const emptyEl = document.querySelector('#obs-list .empty-state');
   if (emptyEl) emptyEl.remove();
@@ -790,36 +806,32 @@ function addObs(existing) {
           <span class="dot"></span>Observation<span class="hint">record</span>
         </button>
       </div>
-            <div class="field">
+      <div class="field">
         <label>Issue / observation (any language — rough notes fine)</label>
         <textarea id="issue-${id}" placeholder="Describe what was observed."></textarea>
       </div>
       <div class="sep"></div>
-      <div class="field">
-        <label>Action taken by</label>
-        <input type="text" id="contractor-${id}" placeholder="Name of person">
-      </div>
-      <div class="field">
-        <label>Action required</label>
-        <textarea id="action-${id}" placeholder="What needs to be done..." style="min-height:60px"></textarea>
-      </div>
-      <div class="row-2">
+      <div class="obs-extra-fields" id="extra-${id}" style="display:none;">
         <div class="field">
-          <label>Action owner</label>
-          <input type="text" id="owner-${id}" placeholder="Role / name">
+          <label>Action taken by</label>
+          <input type="text" id="contractor-${id}" placeholder="Name of person">
+        </div>
+        <div class="field">
+          <label>Action required</label>
+          <textarea id="action-${id}" placeholder="What needs to be done..." style="min-height:60px"></textarea>
         </div>
         <div class="field">
           <label>Target completion date</label>
           <input type="date" id="target-${id}">
         </div>
-      </div>
-      <div class="field">
-        <label>Status</label>
-        <select id="status-${id}">
-          <option value="Open">Open</option>
-          <option value="In progress">In progress</option>
-          <option value="Resolved">Resolved</option>
-        </select>
+        <div class="field">
+          <label>Status</label>
+          <select id="status-${id}">
+            <option value="Open">Open</option>
+            <option value="In progress">In progress</option>
+            <option value="Resolved">Resolved</option>
+          </select>
+        </div>
       </div>
     </div>
   `;
@@ -831,7 +843,6 @@ function addObs(existing) {
     document.getElementById('issue-' + id).value = existing.issue_description || '';
     document.getElementById('contractor-' + id).value = existing.action_taken_by || '';
     document.getElementById('action-' + id).value = existing.action_required || '';
-    document.getElementById('owner-' + id).value = existing.action_owner || '';
     document.getElementById('target-' + id).value = existing.target_date || '';
     if (existing.obs_status) document.getElementById('status-' + id).value = existing.obs_status;
     renderPhotoGrid(id);
@@ -927,6 +938,7 @@ function setSev(id, val, btn) {
   card.querySelectorAll('.sev-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   if (obsData[id]) obsData[id].severity = val;
+  updateObsFieldVisibility(id, val);
   updateSubmitState();
 }
 function getVal(id) {
@@ -937,9 +949,12 @@ function getVal(id) {
 // --------------------------------------------------------------------------
 // Form validation — Submit (and Save to Pending) stay disabled until every
 // required field is filled. Project Details are always required. Each
-// observation, once added, brings its own required fields (element/
-// location, severity, discipline, issue description, action required,
-// action owner, target date).
+// observation, once added, brings its own required fields:
+//   - always required: element/location, severity, issue description
+//   - required only when severity is Critical/Major/Minor (fields are
+//     hidden and therefore not required for severity "Observation"):
+//     action taken by, action required, target completion date, status
+// "Action owner" no longer exists on the form at all.
 // --------------------------------------------------------------------------
 const REQUIRED_MAIN_FIELDS = [
   'proj-name', 'block-tower', 'location', 'report-no', 'project-no',
@@ -947,11 +962,21 @@ const REQUIRED_MAIN_FIELDS = [
 ];
 
 function isObsValid(id) {
-  const requiredIds = ['caption-' + id, 'issue-' + id, 'action-' + id, 'owner-' + id, 'target-' + id];
-  for (const rid of requiredIds) {
+  if (!obsData[id] || !obsData[id].severity) return false;
+  const severity = obsData[id].severity;
+
+  const alwaysRequiredIds = ['caption-' + id, 'issue-' + id];
+  for (const rid of alwaysRequiredIds) {
     if (!getVal(rid)) return false;
   }
-  if (!obsData[id] || !obsData[id].severity) return false;
+
+  if (severity !== 'Observation') {
+    const extraRequiredIds = ['contractor-' + id, 'action-' + id, 'target-' + id];
+    for (const rid of extraRequiredIds) {
+      if (!getVal(rid)) return false;
+    }
+  }
+
   return true;
 }
 
