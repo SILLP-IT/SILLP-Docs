@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Studio Infinite — Site Visit Report</title>
 <link rel="stylesheet" href="css/style.css">
+<script src="js/auth.js"></script>
+<script>
+  // Runs before the page renders — bounces straight to login.html if this
+  // browser tab/session hasn't signed in yet, so the form is never briefly
+  // visible to an unauthenticated visitor.
+  requireAuth();
+</script>
 </head>
 <body>
 
@@ -84,24 +91,23 @@
       <span class="sec-label">Project details</span>
     </div>
     <div class="section-body">
-            <div class="field"><label>Project name</label>
+      <div class="field"><label>Project name</label>
         <input type="text" id="proj-name" placeholder="e.g. ARK Vizag — Tower B"></div>
-      
-      <div class="field"><label>Block / Tower</label>
-        <input type="text" id="block-tower" placeholder="e.g. Tower B"></div>
       <div class="field"><label>Project location</label>
         <input type="text" id="location" placeholder="Tower B, Level 4, Podium"></div>
+      <div class="field"><label>Tower / Villa</label>
+        <input type="text" id="block-tower" placeholder="e.g. Tower B"></div>
       <div class="row-2">
+        <div class="field"><label>Project code</label>
+          <input type="text" id="project-no" placeholder="e.g. SI-2289"></div>
         <div class="field"><label>Report no.</label>
           <input type="text" id="report-no" placeholder="e.g. 014"></div>
-        <div class="field"><label>Project no.</label>
-          <input type="text" id="project-no" placeholder="e.g. SI-2289"></div>
       </div>
       <div class="row-2">
-        <div class="field"><label>Representative – Client name</label>
-          <input type="text" id="rep-client" placeholder="Name"></div>
         <div class="field"><label>Representative – PMC name</label>
           <input type="text" id="rep-pmc" placeholder="Name"></div>
+        <div class="field"><label>Representative – Client name</label>
+          <input type="text" id="rep-client" placeholder="Name"></div>
       </div>
       <div class="row-2">
         <div class="field"><label>Date of visit</label>

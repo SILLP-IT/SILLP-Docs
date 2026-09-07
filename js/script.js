@@ -376,13 +376,11 @@ async function buildObservationsPayload() {
   for (const id of Object.keys(obsData)) {
     const caption    = getVal('caption-' + id);
     const issue      = getVal('issue-' + id);
-    const drw        = getVal('drw-' + id);
     const contractor = getVal('contractor-' + id);
     const action     = getVal('action-' + id);
     const owner      = getVal('owner-' + id);
     const target     = getVal('target-' + id);
     const status     = getVal('status-' + id);
-    const resolution = getVal('resolution-' + id);
     const severity   = obsData[id] ? obsData[id].severity : '';
 
     const photoUrls = await uploadObsPhotos(id);
@@ -391,13 +389,11 @@ async function buildObservationsPayload() {
       element_location: caption,
       severity: severity,
       issue_description: issue,
-      drawing_ref: drw,
       action_taken_by: contractor,
       action_required: action,
       action_owner: owner,
       target_date: target || null,
       obs_status: status,
-      resolution_notes: resolution,
       photos: photoUrls
     });
   }
@@ -800,10 +796,6 @@ function addObs(existing) {
       </div>
       <div class="sep"></div>
       <div class="field">
-        <label>GFC / reference drawing no.</label>
-        <input type="text" id="drw-${id}" placeholder="e.g. SI-C-2345-CD-BL-FP-002  or  NA">
-      </div>
-      <div class="field">
         <label>Action taken by</label>
         <input type="text" id="contractor-${id}" placeholder="Name of person">
       </div>
@@ -829,10 +821,6 @@ function addObs(existing) {
           <option value="Resolved">Resolved</option>
         </select>
       </div>
-      <div class="field">
-        <label>Resolution / follow-up notes</label>
-        <textarea id="resolution-${id}" placeholder="What was agreed, done, or any outstanding items..." style="min-height:56px"></textarea>
-      </div>
     </div>
   `;
     document.getElementById('obs-list').appendChild(div);
@@ -841,13 +829,11 @@ function addObs(existing) {
   if (existing) {
     document.getElementById('caption-' + id).value = existing.element_location || '';
     document.getElementById('issue-' + id).value = existing.issue_description || '';
-    document.getElementById('drw-' + id).value = existing.drawing_ref || '';
     document.getElementById('contractor-' + id).value = existing.action_taken_by || '';
     document.getElementById('action-' + id).value = existing.action_required || '';
     document.getElementById('owner-' + id).value = existing.action_owner || '';
     document.getElementById('target-' + id).value = existing.target_date || '';
     if (existing.obs_status) document.getElementById('status-' + id).value = existing.obs_status;
-    document.getElementById('resolution-' + id).value = existing.resolution_notes || '';
     renderPhotoGrid(id);
 
     if (existing.severity && SEV_CLASS[existing.severity]) {

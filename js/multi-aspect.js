@@ -387,7 +387,7 @@ async function maLoadPendingList() {
     const { data, error } = await supabaseClient
       .from(MA_TABLE)
       .select('id, project_name, visit_date, visit_time, created_at')
-      .eq('status', 'pending')
+      .eq('status', 'pending')  
       .order('created_at', { ascending: false });
 
     if (error) throw error;

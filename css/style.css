@@ -982,6 +982,8 @@ body {
   color: var(--slate2);
   font-size: 13px;
 }
+.login-card .field { text-align: left; margin-bottom: 16px; }
+.login-card form { margin-top: 4px; }
 
 /* ── Signed-in user badge (index.html header) ── */
 .user-badge {

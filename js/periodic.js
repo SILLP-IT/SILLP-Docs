@@ -282,7 +282,6 @@ async function resumePeriodicDraft(id) {
 
     updatePeriodicSubmitState();
     window.scrollTo({ top: 0, behavior: 'smooth' });
-
   } catch (err) {
     console.error('Failed to resume draft:', err);
     alert('Could not load this saved submission: ' + (err.message || 'Unknown error'));
