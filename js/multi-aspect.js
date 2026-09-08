@@ -144,6 +144,7 @@ function handleMaPhotoFiles(fileList) {
     reader.onload = function (ev) {
       maObsData[id].photos.push({ type: 'new', file: file, name: file.name, dataUrl: ev.target.result });
       maRenderMaPhotoGrid(id);
+      updateMaSubmitState();
     };
     reader.readAsDataURL(file);
   });
@@ -176,6 +177,7 @@ function removeMaPhoto(id, index) {
   if (!maObsData[id]) return;
   maObsData[id].photos.splice(index, 1);
   maRenderMaPhotoGrid(id);
+  updateMaSubmitState();
 }
 
 // --------------------------------------------------------------------------
@@ -202,6 +204,27 @@ function isMaFormValid() {
   return true;
 }
 
+// --------------------------------------------------------------------------
+// hasAnyMaPendingData — much looser than isMaFormValid(): true the moment
+// the person has entered ANYTHING at all (any project-detail field, or any
+// observation with typed text or a photo). Used only to gate the "Save to
+// Pending" button, so a barely-started visit can still be saved and
+// resumed later — unlike Submit, which needs the full form to be valid.
+// --------------------------------------------------------------------------
+function hasAnyMaPendingData() {
+  const root = document.getElementById('tab-multiple-issue');
+  if (root) {
+    const fields = root.querySelectorAll('input[type="text"], input[type="date"], input[type="time"], textarea');
+    for (const el of fields) {
+      if (el.value && el.value.trim()) return true;
+    }
+  }
+  for (const id of Object.keys(maObsData)) {
+    if (maObsData[id].photos && maObsData[id].photos.length > 0) return true;
+  }
+  return false;
+}
+
 function updateMaSubmitState() {
   const pendingBtn = document.getElementById('ma-pending-btn');
   const submitBtn = document.getElementById('ma-submit-btn');
@@ -209,7 +232,7 @@ function updateMaSubmitState() {
   if (!submitBtn) return;
   const valid = isMaFormValid();
   submitBtn.disabled = !valid;
-  if (pendingBtn) pendingBtn.disabled = !valid;
+  if (pendingBtn) pendingBtn.disabled = !hasAnyMaPendingData();
   if (hint) hint.classList.toggle('show', false); // hint stays visible always via CSS default; keep simple
   if (hint) hint.style.display = valid ? 'none' : 'block';
 }
@@ -349,7 +372,6 @@ async function confirmMaSubmit() {
 
     const observationsPayload = await maBuildObservationsPayload();
     const payload = maBuildPayload(observationsPayload, 'submitted');
-
     let visitId;
     if (maCurrentDraftId) {
       const { error } = await supabaseClient
@@ -407,12 +429,76 @@ async function maLoadPendingList() {
             <span class="obs-dot"></span>${row.project_name || 'Untitled'}
           </span>
           <span class="field-hint">${row.visit_date || ''} ${row.visit_time || ''}</span>
+          <button class="obs-del" onclick="deleteMaDraft('${row.id}', event)">&#x2715; delete</button>
         </div>
       </div>
     `).join('');
 
   } catch (err) {
     console.error('Failed to load pending list:', err);
+  }
+}
+
+// --------------------------------------------------------------------------
+// extractMaStoragePath — pulls the bucket-relative path out of a Supabase
+// Storage public URL, e.g.
+//   https://.../storage/v1/object/public/site-photos/multi-aspect/foo.jpg
+//   -> multi-aspect/foo.jpg
+// Used so a deleted pending draft's photos can be removed from Storage too.
+// --------------------------------------------------------------------------
+function extractMaStoragePath(url) {
+  if (!url) return null;
+  const marker = `/object/public/${MA_STORAGE_BUCKET}/`;
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  return url.slice(idx + marker.length);
+}
+
+// --------------------------------------------------------------------------
+// deleteMaDraft — deletes a pending draft's row AND its photos from
+// Storage, directly from the pending-submissions list, without needing to
+// resume it first. event.stopPropagation() keeps this from also triggering
+// the card's own onclick (maResumeDraft).
+// --------------------------------------------------------------------------
+async function deleteMaDraft(id, event) {
+  if (event) event.stopPropagation();
+  if (!confirm('Delete this saved draft and its photos? This cannot be undone.')) return;
+
+  try {
+    if (!supabaseClient) throw new Error('Supabase client not initialized.');
+
+    const { data: row, error: fetchError } = await supabaseClient
+      .from(MA_TABLE)
+      .select('observations')
+      .eq('id', id)
+      .single();
+    if (fetchError) throw fetchError;
+
+    const observations = Array.isArray(row?.observations) ? row.observations : [];
+    const paths = [];
+    for (const obs of observations) {
+      if (Array.isArray(obs.photos)) {
+        for (const url of obs.photos) {
+          const path = extractMaStoragePath(url);
+          if (path) paths.push(path);
+        }
+      }
+    }
+    if (paths.length > 0) {
+      const { error: removeError } = await supabaseClient.storage.from(MA_STORAGE_BUCKET).remove(paths);
+      if (removeError) console.error('Failed to remove some photos:', removeError);
+    }
+
+    const { error: deleteError } = await supabaseClient.from(MA_TABLE).delete().eq('id', id);
+    if (deleteError) throw deleteError;
+
+    if (maCurrentDraftId === id) maCurrentDraftId = null;
+
+    maLoadPendingList();
+
+  } catch (err) {
+    console.error('Failed to delete multi-aspect draft:', err);
+    alert('Could not delete this draft: ' + (err.message || 'Unknown error'));
   }
 }
 

@@ -103,6 +103,25 @@ function isPeriodicFormValid() {
   return true;
 }
 
+// --------------------------------------------------------------------------
+// hasAnyPeriodicPendingData — much looser than isPeriodicFormValid(): true
+// the moment the person has entered ANYTHING at all (any single field, or
+// a photo). Used only to gate the "Save to Pending" button, so a
+// barely-started visit can still be saved and resumed later — unlike
+// Submit, which needs the full form to be valid.
+// --------------------------------------------------------------------------
+function hasAnyPeriodicPendingData() {
+  const root = document.getElementById('tab-periodic');
+  if (root) {
+    const fields = root.querySelectorAll('input[type="text"], input[type="date"], textarea');
+    for (const el of fields) {
+      if (el.value && el.value.trim()) return true;
+    }
+  }
+  if (periodicPhotos.length > 0) return true;
+  return false;
+}
+
 function updatePeriodicSubmitState() {
   const btn = document.getElementById('per-submit-btn');
   const pendingBtn = document.getElementById('per-pending-btn');
@@ -110,7 +129,7 @@ function updatePeriodicSubmitState() {
   if (!btn) return;
   const valid = isPeriodicFormValid();
   btn.disabled = !valid;
-  if (pendingBtn) pendingBtn.disabled = !valid;
+  if (pendingBtn) pendingBtn.disabled = !hasAnyPeriodicPendingData();
   if (hint) hint.classList.toggle('show', !valid);
 }
 
@@ -245,12 +264,68 @@ async function loadPeriodicPendingList() {
             <span class="obs-dot"></span>${row.project_name || 'Untitled'}
           </span>
           <span class="field-hint">${row.visit_date || ''}</span>
+          <button class="obs-del" onclick="deletePeriodicDraft('${row.id}', event)">&#x2715; delete</button>
         </div>
       </div>
     `).join('');
 
   } catch (err) {
     console.error('Failed to load pending list:', err);
+  }
+}
+
+// --------------------------------------------------------------------------
+// extractPeriodicStoragePath — pulls the bucket-relative path out of a
+// Supabase Storage public URL, e.g.
+//   https://.../storage/v1/object/public/site-photos/periodic/foo.jpg
+//   -> periodic/foo.jpg
+// Used so a deleted pending draft's photos can be removed from Storage too.
+// --------------------------------------------------------------------------
+function extractPeriodicStoragePath(url) {
+  if (!url) return null;
+  const marker = `/object/public/${PERIODIC_STORAGE_BUCKET}/`;
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  return url.slice(idx + marker.length);
+}
+
+// --------------------------------------------------------------------------
+// deletePeriodicDraft — deletes a pending draft's row AND its photos from
+// Storage, directly from the pending-submissions list, without needing to
+// resume it first. event.stopPropagation() keeps this from also triggering
+// the card's own onclick (resumePeriodicDraft).
+// --------------------------------------------------------------------------
+async function deletePeriodicDraft(id, event) {
+  if (event) event.stopPropagation();
+  if (!confirm('Delete this saved draft and its photos? This cannot be undone.')) return;
+
+  try {
+    if (!supabaseClient) throw new Error('Supabase client not initialized.');
+
+    const { data: row, error: fetchError } = await supabaseClient
+      .from(PERIODIC_TABLE)
+      .select('photos')
+      .eq('id', id)
+      .single();
+    if (fetchError) throw fetchError;
+
+    const photos = Array.isArray(row?.photos) ? row.photos : [];
+    const paths = photos.map(url => extractPeriodicStoragePath(url)).filter(Boolean);
+    if (paths.length > 0) {
+      const { error: removeError } = await supabaseClient.storage.from(PERIODIC_STORAGE_BUCKET).remove(paths);
+      if (removeError) console.error('Failed to remove some photos:', removeError);
+    }
+
+    const { error: deleteError } = await supabaseClient.from(PERIODIC_TABLE).delete().eq('id', id);
+    if (deleteError) throw deleteError;
+
+    if (periodicCurrentDraftId === id) periodicCurrentDraftId = null;
+
+    loadPeriodicPendingList();
+
+  } catch (err) {
+    console.error('Failed to delete periodic draft:', err);
+    alert('Could not delete this draft: ' + (err.message || 'Unknown error'));
   }
 }
 

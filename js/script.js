@@ -497,12 +497,79 @@ async function loadPendingList() {
             <span class="obs-dot"></span>${row.project_name || 'Untitled'}
           </span>
           <span class="field-hint">${row.visit_date || ''} ${row.visit_time || ''}</span>
+          <button class="obs-del" onclick="deletePendingDraft('${row.id}', event)">&#x2715; delete</button>
         </div>
       </div>
     `).join('');
 
   } catch (err) {
     console.error('Failed to load pending list:', err);
+  }
+}
+
+// --------------------------------------------------------------------------
+// extractStoragePath — pulls the bucket-relative path out of a Supabase
+// Storage public URL, e.g.
+//   https://.../storage/v1/object/public/site-photos/obs-1/foo.jpg
+//   -> obs-1/foo.jpg
+// Used so a deleted pending draft's photos can be removed from Storage too.
+// --------------------------------------------------------------------------
+function extractStoragePath(url, bucket) {
+  if (!url) return null;
+  const marker = `/object/public/${bucket}/`;
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  return url.slice(idx + marker.length);
+}
+
+// --------------------------------------------------------------------------
+// deletePendingDraft — deletes a pending draft's row AND its photos from
+// Storage, directly from the pending-submissions list, without needing to
+// resume it first. event.stopPropagation() keeps this from also triggering
+// the card's own onclick (resumeDraft).
+// --------------------------------------------------------------------------
+async function deletePendingDraft(id, event) {
+  if (event) event.stopPropagation();
+  if (!confirm('Delete this saved draft and its photos? This cannot be undone.')) return;
+
+  try {
+    if (!supabaseClient) throw new Error('Supabase client not initialized.');
+
+    const { data: row, error: fetchError } = await supabaseClient
+      .from(ARCH_TABLE)
+      .select('observations')
+      .eq('id', id)
+      .single();
+    if (fetchError) throw fetchError;
+
+    const observations = Array.isArray(row?.observations) ? row.observations : [];
+    const paths = [];
+    for (const obs of observations) {
+      if (Array.isArray(obs.photos)) {
+        for (const url of obs.photos) {
+          const path = extractStoragePath(url, STORAGE_BUCKET);
+          if (path) paths.push(path);
+        }
+      }
+    }
+    if (paths.length > 0) {
+      const { error: removeError } = await supabaseClient.storage.from(STORAGE_BUCKET).remove(paths);
+      if (removeError) console.error('Failed to remove some photos:', removeError);
+    }
+
+    const { error: deleteError } = await supabaseClient.from(ARCH_TABLE).delete().eq('id', id);
+    if (deleteError) throw deleteError;
+
+    // If the deleted draft happened to be the one currently open in the
+    // form, clear the pointer so a later Save/Submit doesn't try to update
+    // a row that no longer exists.
+    if (currentDraftId === id) currentDraftId = null;
+
+    loadPendingList();
+
+  } catch (err) {
+    console.error('Failed to delete draft:', err);
+    alert('Could not delete this draft: ' + (err.message || 'Unknown error'));
   }
 }
 
@@ -892,6 +959,7 @@ function handlePhotoFiles(fileList) {
     reader.onload = function(ev) {
       obsData[id].photos.push({ type: 'new', file: file, name: file.name, dataUrl: ev.target.result });
       renderPhotoGrid(id);
+      updateSubmitState();
     };
     reader.readAsDataURL(file);
   });
@@ -922,6 +990,7 @@ function removePhoto(id, index) {
   if (!obsData[id]) return;
   obsData[id].photos.splice(index, 1);
   renderPhotoGrid(id);
+  updateSubmitState();
 }
 
 function openLightbox(url) {
@@ -992,6 +1061,30 @@ function isFormValid() {
   return true;
 }
 
+// --------------------------------------------------------------------------
+// hasAnyPendingData — much looser than isFormValid(): true the moment the
+// person has entered ANYTHING at all (any project-detail field, a checked
+// discipline, or an observation with a severity/photo/typed value). Used
+// only to gate the "Save to Pending" button, so a barely-started visit can
+// still be saved and resumed later — unlike Submit, which needs the full
+// form to be valid.
+// --------------------------------------------------------------------------
+function hasAnyPendingData() {
+  const root = document.getElementById('tab-architectural');
+  if (root) {
+    const fields = root.querySelectorAll('input[type="text"], input[type="date"], input[type="time"], textarea');
+    for (const el of fields) {
+      if (el.value && el.value.trim()) return true;
+    }
+  }
+  if (document.querySelectorAll('.disc-chip.active, .disc-chip.completed').length > 0) return true;
+  for (const id of Object.keys(obsData)) {
+    if (obsData[id].severity) return true;
+    if (obsData[id].photos && obsData[id].photos.length > 0) return true;
+  }
+  return false;
+}
+
 function updateSubmitState() {
   const btn = document.getElementById('submit-btn');
   const pendingBtn = document.getElementById('pending-btn');
@@ -999,7 +1092,7 @@ function updateSubmitState() {
   if (!btn) return;
   const valid = isFormValid();
   btn.disabled = !valid;
-  if (pendingBtn) pendingBtn.disabled = !valid;
+  if (pendingBtn) pendingBtn.disabled = !hasAnyPendingData();
   if (hint) hint.classList.toggle('show', !valid);
 }
 
