@@ -949,19 +949,83 @@ function choosePhotoSource(source) {
   }
 }
 
+// --------------------------------------------------------------------------
+// compressImage — resizes an image file down to a max dimension and
+// re-encodes it as JPEG at a moderate quality, dramatically cutting file
+// size before upload. Modern phone cameras can produce 8-15MB photos per
+// shot; without this, a handful of them pushes the final generated report
+// past the Cloudflare Worker's ~128MB memory limit and PDF generation fails
+// outright ("Invalid typed array length"). Shared across all three forms
+// (script.js loads first, so periodic.js/multi-aspect.js can call it too).
+// Returns a Promise resolving to a new File object (same base name, .jpg
+// extension). Falls back to the original file if anything goes wrong.
+// --------------------------------------------------------------------------
+function compressImage(file, maxDimension, quality) {
+  // Effectively no downscale for normal camera photos — this only kicks in
+  // for genuinely extreme resolutions (e.g. 200MP "high-res" phone modes),
+  // so pixel count/zoom sharpness stays exactly as the user shot it for
+  // every realistic photo. Size reduction comes entirely from a moderate
+  // JPEG re-encode below, not from shrinking dimensions.
+  maxDimension = maxDimension || 4500;
+  quality = quality || 0.75;
+  return new Promise((resolve) => {
+    if (!file || !file.type || !file.type.startsWith('image/')) {
+      resolve(file);
+      return;
+    }
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = function () {
+      URL.revokeObjectURL(objectUrl);
+      let width = img.naturalWidth;
+      let height = img.naturalHeight;
+      if (width > maxDimension || height > maxDimension) {
+        if (width >= height) {
+          height = Math.round(height * (maxDimension / width));
+          width = maxDimension;
+        } else {
+          width = Math.round(width * (maxDimension / height));
+          height = maxDimension;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(function (blob) {
+        if (!blob) { resolve(file); return; }
+        // Safety net: if re-encoding somehow produced a LARGER file than the
+        // original (rare, but possible for already-heavily-compressed
+        // images), keep the original instead of making things worse.
+        if (blob.size >= file.size) { resolve(file); return; }
+        const newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+        resolve(new File([blob], newName, { type: 'image/jpeg' }));
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+    img.src = objectUrl;
+  });
+}
+
 function handlePhotoFiles(fileList) {
   const files = Array.from(fileList || []);
   if (!files.length || !currentPhotoTarget) return;
   const id = currentPhotoTarget;
   if (!obsData[id]) return;
   files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      obsData[id].photos.push({ type: 'new', file: file, name: file.name, dataUrl: ev.target.result });
-      renderPhotoGrid(id);
-      updateSubmitState();
-    };
-    reader.readAsDataURL(file);
+    compressImage(file).then(compressedFile => {
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        obsData[id].photos.push({ type: 'new', file: compressedFile, name: compressedFile.name, dataUrl: ev.target.result });
+        renderPhotoGrid(id);
+        updateSubmitState();
+      };
+      reader.readAsDataURL(compressedFile);
+    });
   });
 }
 

@@ -410,7 +410,7 @@ async function confirmPeriodicSubmit() {
       if (error) throw error;
       visitId = inserted[0].id;
     }
-
+ 
     periodicCurrentVisitId = visitId;
     startPeriodicReportWait();
 
