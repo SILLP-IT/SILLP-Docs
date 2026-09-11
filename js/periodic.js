@@ -46,13 +46,15 @@ function handlePeriodicPhotoFiles(fileList) {
   const files = Array.from(fileList || []);
   if (!files.length) return;
   files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = function (ev) {
-      periodicPhotos.push({ type: 'new', file: file, name: file.name, dataUrl: ev.target.result });
-      renderPeriodicPhotoGrid();
-      updatePeriodicSubmitState();
-    };
-    reader.readAsDataURL(file);
+    compressImage(file).then(compressedFile => {
+      const reader = new FileReader();
+      reader.onload = function (ev) {
+        periodicPhotos.push({ type: 'new', file: compressedFile, name: compressedFile.name, dataUrl: ev.target.result });
+        renderPeriodicPhotoGrid();
+        updatePeriodicSubmitState();
+      };
+      reader.readAsDataURL(compressedFile);
+    });
   });
 }
 
