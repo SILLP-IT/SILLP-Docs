@@ -15,6 +15,7 @@ const PERIODIC_APPROVE_WEBHOOK_URL = 'https://studioinfinite.app.n8n.cloud/webho
 const PERIODIC_REJECT_WEBHOOK_URL  = 'https://studioinfinite.app.n8n.cloud/webhook/reject-periodic-report';
 
 const PERIODIC_TABLE = 'periodic_site_visits';
+const PERIODIC_FINAL_REPORT_BUCKET = 'site-visit-report'; // same bucket as architectural's generated PDFs
 const PERIODIC_STORAGE_BUCKET = 'site-photos'; // reuses the same bucket, under a periodic/ prefix
 
 let periodicPhotos = [];       // [{ type: 'new'|'existing', file?, name?, url?, dataUrl }]
@@ -63,10 +64,14 @@ function renderPeriodicPhotoGrid() {
   if (!grid) return;
   grid.innerHTML = periodicPhotos.map((p, idx) => `
     <div class="photo-thumb">
-      <img src="${p.dataUrl}" alt="Site photo" onclick="openLightbox('${p.dataUrl}')">
+      <img src="${p.dataUrl}" alt="Site photo">
+      ${pinCountBadge(p)}
       <button class="thumb-clear" onclick="removePeriodicPhoto(${idx})">&#x2715;</button>
     </div>
   `).join('');
+  Array.from(grid.querySelectorAll('.photo-thumb img')).forEach((img, idx) => {
+    img.addEventListener('click', () => openPhotoAnnotator(periodicPhotos[idx]));
+  });
 }
 
 function removePeriodicPhoto(index) {
@@ -89,7 +94,7 @@ document.getElementById('per-file-input-gallery').addEventListener('change', fun
 // Form validation
 // --------------------------------------------------------------------------
 const PERIODIC_REQUIRED_FIELDS = [
-  'per-project-name', 'per-project-code', 'per-visit-date', 'per-site-address',
+  'per-project-name', 'per-project-code', 'per-visit-date', 'per-visit-time', 'per-site-address',
   'per-project-architect', 'per-site-engineer', 'per-prepared-by', 'per-progress-notes'
 ];
 
@@ -115,7 +120,7 @@ function isPeriodicFormValid() {
 function hasAnyPeriodicPendingData() {
   const root = document.getElementById('tab-periodic');
   if (root) {
-    const fields = root.querySelectorAll('input[type="text"], input[type="date"], textarea');
+   const fields = root.querySelectorAll('input[type="text"], input[type="date"], input[type="time"], textarea');
     for (const el of fields) {
       if (el.value && el.value.trim()) return true;
     }
@@ -148,10 +153,10 @@ PERIODIC_REQUIRED_FIELDS.forEach(id => {
 // through untouched) and return the full flat list of public URLs.
 // --------------------------------------------------------------------------
 async function uploadPeriodicPhotos() {
-  const urls = [];
+  const result = [];
   for (const p of periodicPhotos) {
     if (p.type === 'existing') {
-      urls.push(p.url);
+      result.push({ url: p.url, pins: Array.isArray(p.pins) ? p.pins : [] });
       continue;
     }
     const safeName = p.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
@@ -168,9 +173,9 @@ async function uploadPeriodicPhotos() {
       .storage
       .from(PERIODIC_STORAGE_BUCKET)
       .getPublicUrl(path);
-    urls.push(publicUrlData.publicUrl);
+    result.push({ url: publicUrlData.publicUrl, pins: Array.isArray(p.pins) ? p.pins : [] });
   }
-  return urls;
+  return result;
 }
 
 function buildPeriodicPayload(photoUrls, status) {
@@ -178,7 +183,8 @@ function buildPeriodicPayload(photoUrls, status) {
     project_name: periodicGetVal('per-project-name'),
     project_code: periodicGetVal('per-project-code'),
     site_address: periodicGetVal('per-site-address'),
-    visit_date: periodicGetVal('per-visit-date') || null,
+   visit_date: periodicGetVal('per-visit-date') || null,
+visit_time: periodicGetVal('per-visit-time'),
     project_architect: periodicGetVal('per-project-architect'),
     site_engineer: periodicGetVal('per-site-engineer'),
     prepared_by: periodicGetVal('per-prepared-by'),
@@ -200,9 +206,9 @@ async function handlePeriodicSavePending() {
   const originalText = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'Saving...';
-
   try {
     if (!supabaseClient) throw new Error('Supabase client not initialized.');
+    await ensureProjectInList(periodicGetVal('per-project-name'));
 
     const photoUrls = await uploadPeriodicPhotos();
     const payload = buildPeriodicPayload(photoUrls, 'pending');
@@ -311,8 +317,11 @@ async function deletePeriodicDraft(id, event) {
       .single();
     if (fetchError) throw fetchError;
 
-    const photos = Array.isArray(row?.photos) ? row.photos : [];
-    const paths = photos.map(url => extractPeriodicStoragePath(url)).filter(Boolean);
+     const photos = Array.isArray(row?.photos) ? row.photos : [];
+    const paths = photos
+      .map(p => (p && typeof p === 'object') ? p.url : p)
+      .map(url => extractPeriodicStoragePath(url))
+      .filter(Boolean);
     if (paths.length > 0) {
       const { error: removeError } = await supabaseClient.storage.from(PERIODIC_STORAGE_BUCKET).remove(paths);
       if (removeError) console.error('Failed to remove some photos:', removeError);
@@ -352,8 +361,13 @@ async function resumePeriodicDraft(id) {
     document.getElementById('per-progress-notes').value = data.progress_notes || '';
     document.getElementById('per-pending-clarifications').value = data.pending_clarifications || '';
 
-    periodicPhotos = Array.isArray(data.photos)
-      ? data.photos.map(url => ({ type: 'existing', url, dataUrl: url }))
+       periodicPhotos = Array.isArray(data.photos)
+      ? data.photos.map(p => {
+          const isObj = p && typeof p === 'object';
+          const url = isObj ? p.url : p;
+          const pins = isObj && Array.isArray(p.pins) ? p.pins : [];
+          return { type: 'existing', url, dataUrl: url, pins };
+        })
       : [];
     renderPeriodicPhotoGrid();
 
@@ -390,8 +404,9 @@ async function confirmPeriodicSubmit() {
     hint.classList.add('show');
   }
 
-  try {
+   try {
     if (!supabaseClient) throw new Error('Supabase client not initialized.');
+    await ensureProjectInList(periodicGetVal('per-project-name'));
 
     const photoUrls = await uploadPeriodicPhotos();
     const payload = buildPeriodicPayload(photoUrls, 'submitted');
@@ -551,8 +566,81 @@ async function handlePeriodicReject() {
     rejectBtn.textContent = 'Reject & Redo';
   }
 }
+// --------------------------------------------------------------------------
+// handlePeriodicRedo — same pattern as the architectural form's handleRedo:
+// resets this row back to 'pending' (clearing final_file_url), best-effort
+// deletes the old generated PDF, then reloads the exact same data back into
+// the form via resumePeriodicDraft() so the person can edit whatever was
+// wrong and Submit again — updating this same row rather than creating a
+// new one.
+// --------------------------------------------------------------------------
+async function handlePeriodicRedo() {
+  if (!confirm('This will take you back to the form to make corrections. The current report will be discarded and you will need to submit again. Continue?')) return;
 
-// Initial state
+  const approveBtn = document.getElementById('perApproveBtn');
+  const rejectBtn = document.getElementById('perRejectBtn');
+  const redoBtn = document.getElementById('perRedoBtn');
+  approveBtn.disabled = true;
+  rejectBtn.disabled = true;
+  redoBtn.disabled = true;
+  redoBtn.textContent = 'Preparing...';
+
+  try {
+    if (!supabaseClient) throw new Error('Supabase client not initialized.');
+
+    const { error: updateError } = await supabaseClient
+      .from(PERIODIC_TABLE)
+      .update({ status: 'pending', final_file_url: null })
+      .eq('id', periodicCurrentVisitId);
+    if (updateError) throw updateError;
+
+    try {
+      await supabaseClient.storage.from(PERIODIC_FINAL_REPORT_BUCKET).remove([`${periodicCurrentVisitId}.pdf`]);
+    } catch (e) {
+      console.error('Could not remove old periodic report PDF (continuing anyway):', e);
+    }
+
+    document.getElementById('perReportOverlay').classList.remove('open');
+    document.getElementById('perReportReady').style.display = 'none';
+    document.getElementById('perReportWaiting').style.display = 'flex';
+
+    const redoneId = periodicCurrentVisitId;
+    periodicCurrentVisitId = null;
+
+    await resumePeriodicDraft(redoneId);
+
+    const submitBtn = document.getElementById('per-submit-btn');
+    const pendingBtn = document.getElementById('per-pending-btn');
+    if (submitBtn) submitBtn.textContent = 'Submit';
+    if (pendingBtn) pendingBtn.textContent = 'Save to Pending';
+    updatePeriodicSubmitState();
+
+    approveBtn.disabled = false;
+    rejectBtn.disabled = false;
+    redoBtn.disabled = false;
+    redoBtn.textContent = 'Redo';
+
+  } catch (err) {
+    console.error('Periodic redo failed:', err);
+    alert('Could not prepare this report for editing: ' + (err.message || 'Unknown error'));
+    approveBtn.disabled = false;
+    rejectBtn.disabled = false;
+    redoBtn.disabled = false;
+    redoBtn.textContent = 'Redo';
+  }
+}
+function periodicPrefillCurrentTime() {
+  const el = document.getElementById('per-visit-time');
+  if (el && !el.value) {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    el.value = `${hh}:${mm}`;
+  }
+}
+
 renderPeriodicPhotoGrid();
+periodicPrefillCurrentTime();
 updatePeriodicSubmitState();
 loadPeriodicPendingList();
+initProjectAutocomplete('per-project-name', 'per-project-name-list');

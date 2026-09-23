@@ -82,7 +82,6 @@
       <div id="pending-list"></div>
     </div>
   </div>
-
   <!-- Project Details -->
   <div class="section">
     <div class="section-hdr">  
@@ -91,8 +90,10 @@
       <span class="sec-label">Project details</span>
     </div>
     <div class="section-body">
-      <div class="field"><label>Project name</label>
-        <input type="text" id="proj-name" placeholder="e.g. ARK Vizag — Tower B"></div>
+           <div class="field project-combo"><label>Project name</label>
+        <input type="text" id="proj-name" placeholder="e.g. ARK Vizag — Tower B" autocomplete="off">
+        <div class="project-combo-list" id="proj-name-list"></div>
+      </div>
       <div class="field"><label>Project location</label>
         <input type="text" id="location" placeholder="Tower B, Level 4, Podium"></div>
       <div class="field"><label>Tower / Villa</label>
@@ -204,12 +205,14 @@
     <a href="#" id="reportOpenNewTab" target="_blank" rel="noopener" class="report-open-newtab" style="display:none;">
       Having trouble viewing? Open report in a new tab &#8599;
     </a>
-    <div class="report-actions">
-      <button class="btn-reject" id="rejectBtn" onclick="handleReject()">Reject &amp; Redo</button>
+       <div class="report-actions">
+      <button class="btn-reject" id="rejectBtn" onclick="handleReject()">Reject</button>
+      <button class="btn-redo" id="redoBtn" onclick="handleRedo()">Redo</button>
       <button class="btn-approve" id="approveBtn" onclick="handleApprove()">Approve</button>
     </div>
   </div>
 </div>
+
 
 <!-- Export bar -->
 <div class="export-bar">
@@ -272,11 +275,7 @@
   </div>
 </div>
 
-<!-- Photo lightbox -->
-<div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
-  <button class="lightbox-close" onclick="closeLightbox()">&#x2715;</button>
-  <img id="lightbox-img" src="" alt="Full size preview" onclick="event.stopPropagation()">
-</div>
+
 
 <!-- Discipline checklist modal -->
 <div class="modal-overlay" id="checklistModal">
@@ -320,8 +319,10 @@
       <span class="sec-label">Project details</span>
     </div>
     <div class="section-body">
-      <div class="field"><label>Project name</label>
-        <input type="text" id="ma-project-name" placeholder="e.g. ARK Vizag — Tower B"></div>
+            <div class="field project-combo"><label>Project name</label>
+        <input type="text" id="ma-project-name" placeholder="e.g. ARK Vizag — Tower B" autocomplete="off">
+        <div class="project-combo-list" id="ma-project-name-list"></div>
+      </div>
       <div class="row-2">
         <div class="field"><label>Project code</label>
           <input type="text" id="ma-project-code" placeholder="SI-C-XXXX"></div>
@@ -391,8 +392,9 @@
     <a href="#" id="maReportOpenNewTab" target="_blank" rel="noopener" class="report-open-newtab" style="display:none;">
       Having trouble viewing? Open report in a new tab &#8599;
     </a>
-    <div class="report-actions">
-      <button class="btn-reject" id="maRejectBtn" onclick="handleMaReject()">Reject &amp; Redo</button>
+       <div class="report-actions">
+      <button class="btn-reject" id="maRejectBtn" onclick="handleMaReject()">Reject</button>
+      <button class="btn-redo" id="maRedoBtn" onclick="handleMaRedo()">Redo</button>
       <button class="btn-approve" id="maApproveBtn" onclick="handleMaApprove()">Approve</button>
     </div>
   </div>
@@ -470,14 +472,20 @@
       <span class="sec-label">Project details</span>
     </div>
     <div class="section-body">
-      <div class="field"><label>Project name</label>
-        <input type="text" id="per-project-name" placeholder="e.g. ARK Vizag — Tower B"></div>
+           <div class="field project-combo"><label>Project name</label>
+        <input type="text" id="per-project-name" placeholder="e.g. ARK Vizag — Tower B" autocomplete="off">
+        <div class="project-combo-list" id="per-project-name-list"></div>
+      </div>
       <div class="row-2">
         <div class="field"><label>Project code</label>
           <input type="text" id="per-project-code" placeholder="SI-C-XXXX"></div>
         <div class="field"><label>Date of visit</label>
           <input type="date" id="per-visit-date"></div>
       </div>
+      <div class="row-2">
+  <div class="field"><label>Time of visit</label>
+    <input type="time" id="per-visit-time"></div>
+</div>
       <div class="field"><label>Site address</label>
         <input type="text" id="per-site-address" placeholder="Full site address"></div>
       <div class="row-2">
@@ -542,7 +550,6 @@
       <p class="progress-pct" id="perProgressPct">0%</p>
     </div>
   </div>
-
   <div class="report-ready" id="perReportReady" style="display:none;">
     <div class="report-ready-hdr">
       <span>Report ready — please review</span>
@@ -553,13 +560,14 @@
     <a href="#" id="perReportOpenNewTab" target="_blank" rel="noopener" class="report-open-newtab" style="display:none;">
       Having trouble viewing? Open report in a new tab &#8599;
     </a>
-    <div class="report-actions">
-      <button class="btn-reject" id="perRejectBtn" onclick="handlePeriodicReject()">Reject &amp; Redo</button>
+        <div class="report-actions">
+      <button class="btn-reject" id="perRejectBtn" onclick="handlePeriodicReject()">Reject</button>
+      <button class="btn-redo" id="perRedoBtn" onclick="handlePeriodicRedo()">Redo</button>
       <button class="btn-approve" id="perApproveBtn" onclick="handlePeriodicApprove()">Approve</button>
     </div>
   </div>
 </div>
-
+ 
 <!-- Export bar (periodic) -->
 <div class="export-bar">
   <div class="export-inner" style="display:flex; gap:10px;">
@@ -584,7 +592,7 @@
     <button class="photo-sheet-btn" onclick="choosePeriodicPhotoSource('gallery')">
       <span class="photo-sheet-ico">&#128193;</span> Choose from Gallery
     </button>
-    <button class="photo-sheet-cancel" onclick="closePeriodicPhotoSheet()">Cancel</button>
+        <button class="photo-sheet-cancel" onclick="closePeriodicPhotoSheet()">Cancel</button>
   </div>
 </div>
 
@@ -602,12 +610,29 @@
 
 </div>
 <!-- END TAB 3: tab-periodic -->
-
+<!-- Photo lightbox / annotator — tap anywhere on the photo to drop a
+     numbered comment pin marking exactly where an issue is; tap an
+     existing numbered marker to edit or delete its comment. -->
+<div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">&#x2715;</button>
+  <div class="annotator-img-wrap" id="lightbox-img-wrap" onclick="event.stopPropagation()">
+    <img id="lightbox-img" src="" alt="Full size preview" onclick="handleAnnotatorImageClick(event)">
+        <div class="annotator-popup" id="annotatorPopup" onclick="event.stopPropagation()">
+      <button type="button" class="annotator-popup-close" onclick="cancelAnnotatorPopup()">&#x2715;</button>
+      <textarea id="annotatorComment" placeholder="Describe the issue at this point..."></textarea>
+      <div class="annotator-popup-actions">
+        <button type="button" class="annotator-delete-btn" id="annotatorDeleteBtn" onclick="deleteAnnotatorPin()">Delete</button>
+        <button type="button" class="annotator-save-btn" onclick="saveAnnotatorComment()">Save</button>
+      </div>
+    </div>
+  </div>
+  <p class="annotator-hint">Tap anywhere on the photo to mark an issue. Tap a numbered marker to edit it.</p>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js?v=3"></script>
 <script src="js/tabs.js?v=3"></script>
-<script src="js/script.js?v=4"></script>
-<script src="js/periodic.js?v=2"></script>
-<script src="js/multi-aspect.js?v=1"></script>
+<script src="js/script.js?v=6"></script>
+<script src="js/periodic.js?v=4"></script>
+<script src="js/multi-aspect.js?v=3"></script>
 </body>
 </html>

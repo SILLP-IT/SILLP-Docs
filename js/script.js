@@ -5,6 +5,7 @@ let exportedPrompt = '';
 const APPROVE_WEBHOOK_URL = 'https://studioinfinite.app.n8n.cloud/webhook/approve-report';
 const REJECT_WEBHOOK_URL  = 'https://studioinfinite.app.n8n.cloud/webhook/reject-report';
 const ARCH_TABLE = 'site_visits';
+const FINAL_REPORT_BUCKET = 'site-visit-report'; // bucket where the generated PDF lands
 let currentVisitId = null;
 let currentDraftId = null;   // set when resuming a pending draft; null for a fresh submission
 let pollInterval = null;
@@ -234,7 +235,6 @@ function completeChecklist() {
   updateDisciplineProgress();
   updateSubmitState();
 }
-
 function removeChecklist() {
   if (currentChecklistChip) {
     const name = currentChecklistChip.textContent.trim();
@@ -245,7 +245,6 @@ function removeChecklist() {
   updateDisciplineProgress();
   updateSubmitState();
 }
-
 function updateDisciplineProgress() {
   const badge = document.getElementById('disc-progress');
   if (!badge) return;
@@ -253,7 +252,6 @@ function updateDisciplineProgress() {
   const done = document.querySelectorAll('.disc-chip.completed').length;
   badge.textContent = done + ' / ' + total + ' checked';
 }
-
 // --------------------------------------------------------------------------
 // Restore checklistAnswers + chip UI state from a resumed draft's saved
 // checklist_data (used by resumeDraft()).
@@ -274,7 +272,6 @@ function openChecklist(name) {
   const questions = disciplineChecklists[name];
   if (!questions) return;
   if (!checklistAnswers[name]) checklistAnswers[name] = {};
-
   document.getElementById('checklistTitle').textContent = name + ' — Checklist';
   const body = document.getElementById('checklistBody');
   body.innerHTML = questions.map((q, idx) => {
@@ -340,14 +337,19 @@ function closeConfirm() {
 // --------------------------------------------------------------------------
 const STORAGE_BUCKET = 'site-photos';
 
+// --------------------------------------------------------------------------
 // Uploads every NEW photo attached to one observation and returns the full
-// list of public URLs for that observation (existing photos pass through).
+// list as { url, pins } objects — pins (comment markers drawn on the
+// photo) travel along with the URL so they survive into the saved row and
+// come back correctly when a draft is resumed. Existing photos pass
+// through with whatever pins they already had.
+// --------------------------------------------------------------------------
 async function uploadObsPhotos(obsId) {
   const photos = (obsData[obsId] && obsData[obsId].photos) || [];
-  const urls = [];
+  const result = [];
   for (const p of photos) {
     if (p.type === 'existing') {
-      urls.push(p.url);
+      result.push({ url: p.url, pins: Array.isArray(p.pins) ? p.pins : [] });
       continue;
     }
     const safeName = p.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
@@ -364,11 +366,10 @@ async function uploadObsPhotos(obsId) {
       .storage
       .from(STORAGE_BUCKET)
       .getPublicUrl(path);
-    urls.push(publicUrlData.publicUrl);
+    result.push({ url: publicUrlData.publicUrl, pins: Array.isArray(p.pins) ? p.pins : [] });
   }
-  return urls;
+  return result;
 }
-
 // Uploads photos for every observation and returns the full observations array
 // (ready to be stored as jsonb) with photo URLs instead of local file objects.
 // NOTE: "Action owner" has been removed from the form entirely — there is no
@@ -399,7 +400,6 @@ async function buildObservationsPayload() {
   }
   return result;
 }
-
 function buildPayload(observationsPayload, status) {
   return {
 
@@ -419,21 +419,15 @@ function buildPayload(observationsPayload, status) {
     status: status || 'submitted'
   };
 }
-
-// --------------------------------------------------------------------------
-// Save to Pending — insert (first save) or update (already-a-draft) with
-// status 'pending'. Does NOT trigger the n8n automation (only a real
-// Submit, transitioning status into 'submitted', does that).
-// --------------------------------------------------------------------------
 async function handleSavePending() {
   const btn = document.getElementById('pending-btn');
   if (!btn) return;
   const originalText = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'Saving...';
-
-  try {
+   try {
     if (!supabaseClient) throw new Error('Supabase client not initialized.');
+    await ensureProjectInList(getVal('proj-name'));
 
     const observationsPayload = await buildObservationsPayload();
     const payload = buildPayload(observationsPayload, 'pending');
@@ -452,12 +446,10 @@ async function handleSavePending() {
       if (error) throw error;
       currentDraftId = inserted[0].id;
     }
-
     alert('Saved. You can find this under "Pending submissions" to continue later.');
     btn.disabled = false;
     btn.textContent = originalText;
     loadPendingList();
-
   } catch (err) {
     console.error('Save to pending failed:', err);
     alert('Could not save: ' + (err.message || 'Unknown error'));
@@ -541,11 +533,12 @@ async function deletePendingDraft(id, event) {
       .single();
     if (fetchError) throw fetchError;
 
-    const observations = Array.isArray(row?.observations) ? row.observations : [];
+      const observations = Array.isArray(row?.observations) ? row.observations : [];
     const paths = [];
     for (const obs of observations) {
       if (Array.isArray(obs.photos)) {
-        for (const url of obs.photos) {
+        for (const p of obs.photos) {
+          const url = (p && typeof p === 'object') ? p.url : p;
           const path = extractStoragePath(url, STORAGE_BUCKET);
           if (path) paths.push(path);
         }
@@ -606,9 +599,7 @@ async function resumeDraft(id) {
 
     if (observations.length === 0) renderEmptyState();
     updateSubmitState();
-
     window.scrollTo({ top: 0, behavior: 'smooth' });
-
   } catch (err) {
     console.error('Failed to resume draft:', err);
     alert('Could not load this saved submission: ' + (err.message || 'Unknown error'));
@@ -617,24 +608,20 @@ async function resumeDraft(id) {
 
 async function confirmSubmit() {
   closeConfirm();
-
   const btn = document.getElementById('submit-btn');
   const hint = document.getElementById('submit-hint');
   const originalBtnText = btn.textContent;
-
   btn.disabled = true;
   btn.textContent = 'Uploading photos & submitting...';
   if (hint) {
     hint.textContent = 'Please wait, do not close this page.';
     hint.classList.add('show');
   }
-
-  try {
+   try {
     if (!supabaseClient) throw new Error('Supabase client not initialized.');
-
+    await ensureProjectInList(getVal('proj-name'));
     const observationsPayload = await buildObservationsPayload();
     const payload = buildPayload(observationsPayload, 'submitted');
-
     let visitId;
     if (currentDraftId) {
       const { error } = await supabaseClient
@@ -651,10 +638,8 @@ async function confirmSubmit() {
       if (error) throw error;
       visitId = inserted[0].id;
     }
-
     currentVisitId = visitId;
     startReportWait();
-
   } catch (err) {
     console.error('Submission failed:', err);
     alert('Submission failed: ' + (err.message || 'Unknown error') + '\nPlease check your connection and try again.');
@@ -792,6 +777,75 @@ async function handleReject() {
     rejectBtn.textContent = 'Reject & Redo';
   }
 }
+// --------------------------------------------------------------------------
+// handleRedo — for when the generated report needs a correction (wrong
+// text, wrong photo, etc.) rather than being entirely wrong. Unlike
+// Reject, this does NOT delete the row or its photos: it resets the same
+// row back to 'pending' (clearing the stale final_file_url), best-effort
+// deletes the old generated PDF, then reloads the exact same data back
+// into the form via resumeDraft() so the person can edit whatever was
+// wrong and Submit again — which updates this same row rather than
+// creating a new one.
+// --------------------------------------------------------------------------
+async function handleRedo() {
+  if (!confirm('This will take you back to the form to make corrections. The current report will be discarded and you will need to submit again. Continue?')) return;
+
+  const approveBtn = document.getElementById('approveBtn');
+  const rejectBtn = document.getElementById('rejectBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  approveBtn.disabled = true;
+  rejectBtn.disabled = true;
+  redoBtn.disabled = true;
+  redoBtn.textContent = 'Preparing...';
+
+  try {
+    if (!supabaseClient) throw new Error('Supabase client not initialized.');
+
+    const { error: updateError } = await supabaseClient
+      .from(ARCH_TABLE)
+      .update({ status: 'pending', final_file_url: null })
+      .eq('id', currentVisitId);
+    if (updateError) throw updateError;
+
+    try {
+      await supabaseClient.storage.from(FINAL_REPORT_BUCKET).remove([`${currentVisitId}.pdf`]);
+    } catch (e) {
+      console.error('Could not remove old report PDF (continuing anyway):', e);
+    }
+
+    document.getElementById('reportOverlay').classList.remove('open');
+    document.getElementById('reportReady').style.display = 'none';
+    document.getElementById('reportWaiting').style.display = 'flex';
+
+    const redoneId = currentVisitId;
+    currentVisitId = null;
+
+    await resumeDraft(redoneId);
+
+    // The submit/save buttons were left in their "Uploading..." / "Saving..."
+    // disabled state from the ORIGINAL submission (before this report was
+    // even generated) — resumeDraft() only recalculates whether they SHOULD
+    // be enabled, not their leftover text, so reset both explicitly here.
+    const submitBtn = document.getElementById('submit-btn');
+    const pendingBtn = document.getElementById('pending-btn');
+    if (submitBtn) submitBtn.textContent = 'Submit';
+    if (pendingBtn) pendingBtn.textContent = 'Save to Pending';
+    updateSubmitState();
+
+    approveBtn.disabled = false;
+    rejectBtn.disabled = false;
+    redoBtn.disabled = false;
+    redoBtn.textContent = 'Redo';
+
+  } catch (err) {
+    console.error('Redo failed:', err);
+    alert('Could not prepare this report for editing: ' + (err.message || 'Unknown error'));
+    approveBtn.disabled = false;
+    rejectBtn.disabled = false;
+    redoBtn.disabled = false;
+    redoBtn.textContent = 'Redo';
+  }
+}
 function renderEmptyState() {
   const list = document.getElementById('obs-list');
   if (!list) return;
@@ -833,11 +887,15 @@ function addObs(existing) {
   const id = obsCount;
   obsData[id] = {
     severity: (existing && existing.severity) || '',
-    photos: existing && Array.isArray(existing.photos)
-      ? existing.photos.map(url => ({ type: 'existing', url, dataUrl: url }))
+       photos: existing && Array.isArray(existing.photos)
+      ? existing.photos.map(p => {
+          const isObj = p && typeof p === 'object';
+          const url = isObj ? p.url : p;
+          const pins = isObj && Array.isArray(p.pins) ? p.pins : [];
+          return { type: 'existing', url, dataUrl: url, pins };
+        })
       : []
   };
-
   const div = document.createElement('div');
   div.className = 'obs-card';
   div.id = 'obs-' + id;
@@ -1009,7 +1067,6 @@ function compressImage(file, maxDimension, quality) {
     img.src = objectUrl;
   });
 }
-
 function handlePhotoFiles(fileList) {
   const files = Array.from(fileList || []);
   if (!files.length || !currentPhotoTarget) return;
@@ -1027,42 +1084,156 @@ function handlePhotoFiles(fileList) {
     });
   });
 }
-
 document.getElementById('file-input-camera').addEventListener('change', function(e) {
   handlePhotoFiles(e.target.files);
   this.value = '';
 });
-
 document.getElementById('file-input-gallery').addEventListener('change', function(e) {
   handlePhotoFiles(e.target.files);
   this.value = '';
 });
-
 function renderPhotoGrid(id) {
   const grid = document.getElementById('preview-' + id);
   if (!grid || !obsData[id]) return;
   grid.innerHTML = obsData[id].photos.map((p, idx) => `
     <div class="photo-thumb">
-      <img src="${p.dataUrl}" alt="Site photo" onclick="openLightbox('${p.dataUrl}')">
+      <img src="${p.dataUrl}" alt="Site photo">
+      ${pinCountBadge(p)}
       <button class="thumb-clear" onclick="removePhoto(${id}, ${idx})">&#x2715;</button>
     </div>
   `).join('');
+  Array.from(grid.querySelectorAll('.photo-thumb img')).forEach((img, idx) => {
+    img.addEventListener('click', () => openPhotoAnnotator(obsData[id].photos[idx]));
+  });
 }
-
 function removePhoto(id, index) {
   if (!obsData[id]) return;
   obsData[id].photos.splice(index, 1);
   renderPhotoGrid(id);
   updateSubmitState();
 }
+// ==========================================================================
+// Photo annotation (pin + comment) — shared across all three forms. A
+// "photo object" is one of the existing in-memory entries already used by
+// each form's photos array. We operate on the LIVE object reference itself
+// (JS objects pass by reference), so pins added here become part of
+// whatever array that object already lives in — no per-form special-casing
+// needed.
+// ==========================================================================
+let annotatorPhoto = null;
+let annotatorActivePin = null;
 
-function openLightbox(url) {
-  document.getElementById('lightbox-img').src = url;
+function ensurePins(photoObj) {
+  if (!Array.isArray(photoObj.pins)) photoObj.pins = [];
+  return photoObj.pins;
+}
+
+function pinCountBadge(photoObj) {
+  const n = (photoObj.pins && photoObj.pins.length) || 0;
+  if (n === 0) return '';
+  return `<span class="pin-count-badge">${n}</span>`;
+}
+
+function openPhotoAnnotator(photoObj) {
+  annotatorPhoto = photoObj;
+  ensurePins(photoObj);
+  document.getElementById('lightbox-img').src = photoObj.dataUrl || photoObj.url;
+  renderAnnotatorMarkers();
+  closeAnnotatorPopup();
   document.getElementById('lightbox').classList.add('open');
 }
 
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('open');
+  closeAnnotatorPopup();
+  annotatorPhoto = null;
+  refreshAllPhotoGrids();
+}
+
+function renderAnnotatorMarkers() {
+  const wrap = document.getElementById('lightbox-img-wrap');
+  if (!wrap || !annotatorPhoto) return;
+  wrap.querySelectorAll('.annotator-marker').forEach(el => el.remove());
+  ensurePins(annotatorPhoto).forEach((pin, idx) => {
+    const marker = document.createElement('div');
+    marker.className = 'annotator-marker';
+    marker.style.left = pin.x + '%';
+    marker.style.top = pin.y + '%';
+    marker.textContent = String(idx + 1);
+    marker.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openAnnotatorPopup(pin, false);
+    });
+    wrap.appendChild(marker);
+  });
+}
+
+function handleAnnotatorImageClick(e) {
+  if (!annotatorPhoto) return;
+  const img = document.getElementById('lightbox-img');
+  const rect = img.getBoundingClientRect();
+  const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+  const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+  const newPin = { x: Math.max(0, Math.min(100, xPct)), y: Math.max(0, Math.min(100, yPct)), comment: '' };
+  openAnnotatorPopup(newPin, true);
+}
+
+function openAnnotatorPopup(pin, isNew) {
+  annotatorActivePin = pin;
+  const popup = document.getElementById('annotatorPopup');
+  document.getElementById('annotatorComment').value = pin.comment || '';
+  popup.style.left = pin.x + '%';
+  popup.style.top = pin.y + '%';
+  popup.classList.add('open');
+  document.getElementById('annotatorDeleteBtn').style.display = isNew ? 'none' : 'inline-block';
+  document.getElementById('annotatorComment').focus();
+}
+
+function closeAnnotatorPopup() {
+  const popup = document.getElementById('annotatorPopup');
+  if (popup) popup.classList.remove('open');
+  annotatorActivePin = null;
+}
+// --------------------------------------------------------------------------
+// cancelAnnotatorPopup — called from the popup's own "X" button. Unlike
+// closeLightbox() (which closes the whole photo view), this only dismisses
+// the comment popup without saving anything — since a NEW pin is only
+// pushed into the photo's pins array inside saveAnnotatorComment(), simply
+// not calling that (and clearing annotatorActivePin) is enough to discard
+// an accidental tap with nothing left behind. An EXISTING pin being edited
+// is untouched too, since its comment text is only overwritten on Save.
+// --------------------------------------------------------------------------
+function cancelAnnotatorPopup() {
+  closeAnnotatorPopup();
+}
+function saveAnnotatorComment() {
+  if (!annotatorPhoto || !annotatorActivePin) return;
+  const text = document.getElementById('annotatorComment').value.trim();
+  if (!text) { alert('Please enter a comment describing the issue at this point.'); return; }
+  annotatorActivePin.comment = text;
+  const pins = ensurePins(annotatorPhoto);
+  if (!pins.includes(annotatorActivePin)) pins.push(annotatorActivePin);
+  closeAnnotatorPopup();
+  renderAnnotatorMarkers();
+}
+
+function deleteAnnotatorPin() {
+  if (!annotatorPhoto || !annotatorActivePin) return;
+  const pins = ensurePins(annotatorPhoto);
+  const idx = pins.indexOf(annotatorActivePin);
+  if (idx !== -1) pins.splice(idx, 1);
+  closeAnnotatorPopup();
+  renderAnnotatorMarkers();
+}
+
+function refreshAllPhotoGrids() {
+  if (typeof obsData !== 'undefined') {
+    Object.keys(obsData).forEach(id => renderPhotoGrid(id));
+  }
+  if (typeof periodicPhotos !== 'undefined' && typeof renderPeriodicPhotoGrid === 'function') renderPeriodicPhotoGrid();
+  if (typeof maObsData !== 'undefined') {
+    Object.keys(maObsData).forEach(id => { if (typeof maRenderMaPhotoGrid === 'function') maRenderMaPhotoGrid(id); });
+  }
 }
 
 function setSev(id, val, btn) {
@@ -1077,7 +1248,6 @@ function getVal(id) {
   const el = document.getElementById(id);
   return el ? el.value.trim() : '';
 }
-
 // --------------------------------------------------------------------------
 // Form validation — Submit (and Save to Pending) stay disabled until every
 // required field is filled. Project Details are always required. Each
@@ -1108,10 +1278,8 @@ function isObsValid(id) {
       if (!getVal(rid)) return false;
     }
   }
-
   return true;
 }
-
 function isFormValid() {
   for (const rid of REQUIRED_MAIN_FIELDS) {
     if (!getVal(rid)) return false;
@@ -1158,8 +1326,6 @@ function updateSubmitState() {
   if (pendingBtn) pendingBtn.disabled = !hasAnyPendingData();
   if (hint) hint.classList.toggle('show', !valid);
 }
-
-
 REQUIRED_MAIN_FIELDS.forEach(id => {
   const el = document.getElementById(id);
   if (el) {
@@ -1167,7 +1333,6 @@ REQUIRED_MAIN_FIELDS.forEach(id => {
     el.addEventListener('change', updateSubmitState);
   }
 });
-
 document.getElementById('obs-list').addEventListener('input', updateSubmitState);
 document.getElementById('obs-list').addEventListener('change', updateSubmitState);
 
@@ -1191,7 +1356,110 @@ document.getElementById('modal').addEventListener('click', function(e) {
   if (e.target === this) closeModal();
 });
 
+
+function getCurrentTimeString() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+function prefillCurrentTime() {
+  const visitTimeEl = document.getElementById('visit-time');
+  if (visitTimeEl && !visitTimeEl.value) {
+    visitTimeEl.value = getCurrentTimeString();
+  }
+}
+// ==========================================================================
+// Project name autocomplete — shared across all three forms. Backed by a
+// `projects` table in Supabase. The field stays a plain text input
+// underneath — typing a name not in the list is always allowed — this
+// just adds a click/search-to-pick list on top, and saves genuinely new
+// names back to the table so they show up next time.
+// ==========================================================================
+const PROJECTS_TABLE = 'projects';
+let cachedProjectNames = null;
+let projectListLoadPromise = null;
+
+async function loadProjectNames() {
+  if (cachedProjectNames) return cachedProjectNames;
+  if (projectListLoadPromise) return projectListLoadPromise;
+  projectListLoadPromise = (async () => {
+    try {
+      const { data, error } = await supabaseClient
+        .from(PROJECTS_TABLE)
+        .select('project_name')
+        .order('project_name', { ascending: true });
+      if (error) throw error;
+      cachedProjectNames = (data || []).map(r => r.project_name).filter(Boolean);
+    } catch (err) {
+      console.error('Failed to load project list:', err);
+      cachedProjectNames = [];
+    }
+    return cachedProjectNames;
+  })();
+  return projectListLoadPromise;
+}
+
+async function ensureProjectInList(name) {
+  const trimmed = (name || '').trim();
+  if (!trimmed) return;
+  const list = await loadProjectNames();
+  const exists = list.some(n => n.toLowerCase() === trimmed.toLowerCase());
+  if (exists) return;
+  try {
+    const { error } = await supabaseClient
+      .from(PROJECTS_TABLE)
+      .insert([{ project_name: trimmed }]);
+    if (error) {
+      if (error.code !== '23505') throw error;
+    } else {
+      cachedProjectNames.push(trimmed);
+    }
+  } catch (err) {
+    console.error('Could not add new project to the list:', err);
+  }
+}
+
+function initProjectAutocomplete(inputId, listId) {
+  const input = document.getElementById(inputId);
+  const list = document.getElementById(listId);
+  if (!input || !list) return;
+
+  function render(filterText) {
+    const q = (filterText || '').trim().toLowerCase();
+    const names = cachedProjectNames || [];
+    const matches = q ? names.filter(n => n.toLowerCase().includes(q)) : names;
+    if (matches.length === 0) {
+      list.innerHTML = '<div class="project-combo-empty">No match — your typed name will be saved as a new project</div>';
+    } else {
+      list.innerHTML = matches.map(n =>
+        `<div class="project-combo-item">${n.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`
+      ).join('');
+    }
+    list.classList.add('open');
+  }
+
+  input.addEventListener('focus', async () => {
+    await loadProjectNames();
+    render(input.value);
+  });
+  input.addEventListener('input', () => render(input.value));
+  list.addEventListener('mousedown', (e) => {
+    const item = e.target.closest('.project-combo-item');
+    if (!item) return;
+    input.value = item.textContent;
+    list.classList.remove('open');
+    input.dispatchEvent(new Event('input'));
+    input.dispatchEvent(new Event('change'));
+  });
+  input.addEventListener('blur', () => {
+    setTimeout(() => list.classList.remove('open'), 150);
+  });
+}
 updateDisciplineProgress();
 renderEmptyState();
+prefillCurrentTime();
 updateSubmitState();
 loadPendingList();
+loadProjectNames();
+initProjectAutocomplete('proj-name', 'proj-name-list');

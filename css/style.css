@@ -1113,7 +1113,7 @@ body {
   background: var(--white);
   border-top: 0.5px solid var(--stone);
 }
-.btn-reject, .btn-approve {
+.btn-reject, .btn-approve, .btn-redo {
   flex: 1;
   padding: 14px;
   border-radius: var(--radius);
@@ -1130,12 +1130,18 @@ body {
   border: 0.5px solid var(--sev-c);
 }
 .btn-reject:hover { background: var(--sev-c); color: var(--white); }
+.btn-redo {
+  background: var(--gold-l);
+  color: var(--gold);
+  border: 0.5px solid var(--gold);
+}
+.btn-redo:hover { background: var(--gold); color: var(--white); }
 .btn-approve {
   background: var(--ok);
   color: var(--white);
 }
 .btn-approve:hover { background: #244a24; }
-.btn-reject:disabled, .btn-approve:disabled {
+.btn-reject:disabled, .btn-approve:disabled, .btn-redo:disabled {
   opacity: .5; cursor: not-allowed;
 }
 .report-open-newtab {
@@ -1149,3 +1155,151 @@ body {
   text-decoration: none;
 }
 .report-open-newtab:hover { color: var(--gold); }
+
+/* ── Photo annotation (pin + comment) ── */
+.pin-count-badge {
+  position: absolute;
+  bottom: 4px; left: 4px;
+  background: var(--gold);
+  color: var(--white);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 20px;
+  font-family: 'DM Mono', monospace;
+  box-shadow: var(--shadow-sm);
+}
+.annotator-img-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  max-height: 90vh;
+}
+.annotator-img-wrap img {
+  max-width: 100%;
+  max-height: 90vh;
+  border-radius: var(--radius-sm);
+  display: block;
+  box-shadow: var(--shadow-lg);
+  cursor: crosshair;
+}
+.annotator-marker {
+  position: absolute;
+  width: 26px; height: 26px;
+  margin-left: -13px; margin-top: -13px;
+  background: var(--gold);
+  color: var(--white);
+  border: 2px solid var(--white);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  z-index: 2;
+}
+.annotator-popup {
+  display: none;
+  position: absolute;
+  width: 240px;
+  margin-left: 10px;
+  background: var(--white);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  padding: 10px;
+  z-index: 3;
+}
+.annotator-popup-close {
+  position: absolute;
+  top: -9px; right: -9px;
+  width: 22px; height: 22px;
+  background: var(--slate);
+  color: var(--white);
+  border: 2px solid var(--white);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+.annotator-popup-close:hover { background: var(--sev-c); }
+.annotator-popup.open { display: block; }
+.annotator-popup textarea {
+  width: 100%;
+  min-height: 60px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  border: 0.5px solid var(--stone);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  resize: vertical;
+  outline: none;
+}
+.annotator-popup textarea:focus { border-color: var(--gold); }
+.annotator-popup-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.annotator-save-btn, .annotator-delete-btn {
+  flex: 1;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+}
+.annotator-save-btn { background: var(--slate); color: var(--white); }
+.annotator-save-btn:hover { background: var(--slate3); }
+.annotator-delete-btn { background: var(--sev-cl); color: var(--sev-c); }
+.annotator-delete-btn:hover { background: var(--sev-c); color: var(--white); }
+.annotator-hint {
+  position: absolute;
+  bottom: 16px; left: 0; right: 0;
+  text-align: center;
+  color: var(--white);
+  font-size: 12px;
+  opacity: .85;
+}
+.project-combo { position: relative; }
+.project-combo-list {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  margin-top: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--white);
+  border: 0.5px solid var(--stone);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+.project-combo-list.open { display: block; }
+.project-combo-item {
+  padding: 10px 12px;
+  font-size: 13.5px;
+  color: var(--body);
+  cursor: pointer;
+  border-bottom: 0.5px solid var(--stone);
+}
+.project-combo-item:last-child { border-bottom: none; }
+.project-combo-item:hover {
+  background: var(--gold-l);
+  color: var(--gold);
+}
+.project-combo-empty {
+  padding: 10px 12px;
+  font-size: 12.5px;
+  color: var(--pebble);
+}

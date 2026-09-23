@@ -16,6 +16,7 @@ const MA_APPROVE_WEBHOOK_URL = 'https://studioinfinite.app.n8n.cloud/webhook/app
 const MA_REJECT_WEBHOOK_URL  = 'https://studioinfinite.app.n8n.cloud/webhook/reject-multi-aspect-report';
 
 const MA_TABLE = 'multi_aspect_site_visits';
+const MA_FINAL_REPORT_BUCKET = 'site-visit-report'; // same bucket as the other two forms' generated PDFs
 const MA_STORAGE_BUCKET = 'site-photos'; // reuses the same bucket, under a multi-aspect/ prefix
 
 let maObsCount = 0;
@@ -162,15 +163,20 @@ document.getElementById('ma-file-input-gallery').addEventListener('change', func
 function maRenderMaPhotoGrid(id) {
   const grid = document.getElementById('ma-preview-' + id);
   if (!grid || !maObsData[id]) return;
+  maObsData[id].photos.forEach(p => { if (!p.dataUrl && p.url) p.dataUrl = p.url; });
   grid.innerHTML = maObsData[id].photos.map((p, idx) => {
     const src = p.type === 'existing' ? p.url : p.dataUrl;
     return `
       <div class="photo-thumb">
-        <img src="${src}" alt="Observation photo" onclick="openLightbox('${src}')">
+        <img src="${src}" alt="Observation photo">
+        ${pinCountBadge(p)}
         <button class="thumb-clear" onclick="removeMaPhoto(${id}, ${idx})">&#x2715;</button>
       </div>
     `;
   }).join('');
+  Array.from(grid.querySelectorAll('.photo-thumb img')).forEach((img, idx) => {
+    img.addEventListener('click', () => openPhotoAnnotator(maObsData[id].photos[idx]));
+  });
 }
 
 function removeMaPhoto(id, index) {
@@ -245,15 +251,12 @@ MA_REQUIRED_FIELDS.forEach(id => {
   }
 });
 
-// --------------------------------------------------------------------------
-// Build payload
-// --------------------------------------------------------------------------
 async function maUploadNewPhotos(id) {
   const obs = maObsData[id];
-  const urls = [];
+  const result = [];
   for (const p of obs.photos) {
     if (p.type === 'existing') {
-      urls.push(p.url);
+      result.push({ url: p.url, pins: Array.isArray(p.pins) ? p.pins : [] });
       continue;
     }
     const safeName = p.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
@@ -270,9 +273,9 @@ async function maUploadNewPhotos(id) {
       .storage
       .from(MA_STORAGE_BUCKET)
       .getPublicUrl(path);
-    urls.push(publicUrlData.publicUrl);
+    result.push({ url: publicUrlData.publicUrl, pins: Array.isArray(p.pins) ? p.pins : [] });
   }
-  return urls;
+  return result;
 }
 
 async function maBuildObservationsPayload() {
@@ -316,6 +319,7 @@ async function handleMaSavePending() {
 
   try {
     if (!supabaseClient) throw new Error('Supabase client not initialized.');
+    await ensureProjectInList(maGetVal('ma-project-name'));
 
     const observationsPayload = await maBuildObservationsPayload();
     const payload = maBuildPayload(observationsPayload, 'pending');
@@ -367,8 +371,9 @@ async function confirmMaSubmit() {
   btn.disabled = true;
   btn.textContent = 'Uploading photos & submitting...';
 
-  try {
+    try {
     if (!supabaseClient) throw new Error('Supabase client not initialized.');
+    await ensureProjectInList(maGetVal('ma-project-name'));
 
     const observationsPayload = await maBuildObservationsPayload();
     const payload = maBuildPayload(observationsPayload, 'submitted');
@@ -474,11 +479,12 @@ async function deleteMaDraft(id, event) {
       .single();
     if (fetchError) throw fetchError;
 
-    const observations = Array.isArray(row?.observations) ? row.observations : [];
+      const observations = Array.isArray(row?.observations) ? row.observations : [];
     const paths = [];
     for (const obs of observations) {
       if (Array.isArray(obs.photos)) {
-        for (const url of obs.photos) {
+        for (const p of obs.photos) {
+          const url = (p && typeof p === 'object') ? p.url : p;
           const path = extractMaStoragePath(url);
           if (path) paths.push(path);
         }
@@ -533,7 +539,12 @@ async function maResumeDraft(id) {
         location: obs.location || '',
         conclusion: obs.conclusion || '',
         actionBy: obs.action_by || '',
-        photos: (obs.photos || []).map(url => ({ type: 'existing', url }))
+                photos: (obs.photos || []).map(p => {
+          const isObj = p && typeof p === 'object';
+          const url = isObj ? p.url : p;
+          const pins = isObj && Array.isArray(p.pins) ? p.pins : [];
+          return { type: 'existing', url, dataUrl: url, pins };
+        })
       });
     });
 
@@ -673,8 +684,85 @@ async function handleMaReject() {
     rejectBtn.textContent = 'Reject & Redo';
   }
 }
+// --------------------------------------------------------------------------
+// handleMaRedo — same pattern as the architectural/periodic forms: resets
+// this row back to 'pending' (clearing final_file_url), best-effort
+// deletes the old generated PDF, then reloads the exact same data back into
+// the form via maResumeDraft() so the person can edit whatever was wrong
+// and Submit again — updating this same row rather than creating a new one.
+// --------------------------------------------------------------------------
+async function handleMaRedo() {
+  if (!confirm('This will take you back to the form to make corrections. The current report will be discarded and you will need to submit again. Continue?')) return;
+
+  const approveBtn = document.getElementById('maApproveBtn');
+  const rejectBtn = document.getElementById('maRejectBtn');
+  const redoBtn = document.getElementById('maRedoBtn');
+  approveBtn.disabled = true;
+  rejectBtn.disabled = true;
+  redoBtn.disabled = true;
+  redoBtn.textContent = 'Preparing...';
+
+  try {
+    if (!supabaseClient) throw new Error('Supabase client not initialized.');
+
+    const { error: updateError } = await supabaseClient
+      .from(MA_TABLE)
+      .update({ status: 'pending', final_file_url: null })
+      .eq('id', maCurrentVisitId);
+    if (updateError) throw updateError;
+
+    try {
+      await supabaseClient.storage.from(MA_FINAL_REPORT_BUCKET).remove([`${maCurrentVisitId}.pdf`]);
+    } catch (e) {
+      console.error('Could not remove old multi-aspect report PDF (continuing anyway):', e);
+    }
+
+    document.getElementById('maReportOverlay').classList.remove('open');
+    document.getElementById('maReportReady').style.display = 'none';
+    document.getElementById('maReportWaiting').style.display = 'flex';
+
+    const redoneId = maCurrentVisitId;
+    maCurrentVisitId = null;
+
+    await maResumeDraft(redoneId);
+
+    const submitBtn = document.getElementById('ma-submit-btn');
+    const pendingBtn = document.getElementById('ma-pending-btn');
+    if (submitBtn) submitBtn.textContent = 'Submit';
+    if (pendingBtn) pendingBtn.textContent = 'Save to Pending';
+    updateMaSubmitState();
+
+    approveBtn.disabled = false;
+    rejectBtn.disabled = false;
+    redoBtn.disabled = false;
+    redoBtn.textContent = 'Redo';
+
+  } catch (err) {
+    console.error('Multi-aspect redo failed:', err);
+    alert('Could not prepare this report for editing: ' + (err.message || 'Unknown error'));
+    approveBtn.disabled = false;
+    rejectBtn.disabled = false;
+    redoBtn.disabled = false;
+    redoBtn.textContent = 'Redo';
+  }
+}
+// --------------------------------------------------------------------------
+// Auto-fill current time — same as the architectural form, so the site
+// engineer doesn't need to manually set the visit time.
+// --------------------------------------------------------------------------
+function maPrefillCurrentTime() {
+  const visitTimeEl = document.getElementById('ma-visit-time');
+  if (visitTimeEl && !visitTimeEl.value) {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    visitTimeEl.value = `${hh}:${mm}`;
+  }
+}
 
 // Initial state
 maRenderEmptyState();
+maPrefillCurrentTime();
 updateMaSubmitState();
 maLoadPendingList();
+initProjectAutocomplete('ma-project-name', 'ma-project-name-list');
