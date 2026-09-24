@@ -408,8 +408,7 @@ function buildPayload(observationsPayload, status) {
     location: getVal('location'),
     report_no: getVal('report-no'),
     project_no: getVal('project-no'),
-    representative_client_name: getVal('rep-client'),
-    representative_pmc_name: getVal('rep-pmc'),
+    representative_name: getVal('rep-name'),
     visit_date: getVal('visit-date') || null,
     visit_time: getVal('visit-time'),
     project_architect: getVal('project-architect'),
@@ -585,8 +584,7 @@ async function resumeDraft(id) {
     document.getElementById('location').value = data.location || '';
     document.getElementById('report-no').value = data.report_no || '';
     document.getElementById('project-no').value = data.project_no || '';
-    document.getElementById('rep-client').value = data.representative_client_name || '';
-    document.getElementById('rep-pmc').value = data.representative_pmc_name || '';
+    document.getElementById('rep-name').value = data.representative_name || '';
     document.getElementById('visit-date').value = data.visit_date || '';
     document.getElementById('visit-time').value = data.visit_time || '';
     document.getElementById('project-architect').value = data.project_architect || '';
@@ -1260,7 +1258,7 @@ function getVal(id) {
 // --------------------------------------------------------------------------
 const REQUIRED_MAIN_FIELDS = [
   'proj-name', 'block-tower', 'location', 'report-no', 'project-no',
-  'rep-client', 'rep-pmc', 'visit-date', 'visit-time', 'project-architect', 'project-coordinator'
+  'rep-name', 'visit-date', 'visit-time', 'project-architect', 'project-coordinator'
 ];
 
 function isObsValid(id) {
