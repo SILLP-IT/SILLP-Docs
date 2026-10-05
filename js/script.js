@@ -14,6 +14,8 @@ let pollInterval = null;
 const SEV_CLASS = { 'Critical': 'sev-critical', 'Major': 'sev-major', 'Minor': 'sev-minor', 'Observation': 'sev-obs' };
 
 // Discipline checklists — add more disciplines here the same way (e.g. 'Brick Marking': [...])
+// Shared across all three forms: Architectural (below), and the optional,
+// namespaced checklist controllers in periodic.js / multi-aspect.js.
 const disciplineChecklists = {
   'Block Marking': [
     'Primary grid lines transferred correctly on site as per approved architectural drawings',
@@ -216,6 +218,13 @@ const disciplineChecklists = {
 let checklistAnswers = {};
 let currentChecklistChip = null;
 
+// NOTE: Architectural's checklist is scoped to #disc-wrap everywhere below
+// (not a bare document-wide .disc-chip query) — Periodic and Multi-Aspect
+// now have their OWN "Disciplines inspected" chips elsewhere on the same
+// page (own containers #per-disc-wrap / #ma-disc-wrap, own controllers in
+// periodic.js / multi-aspect.js), and an unscoped query here would wrongly
+// match THEIR chips too (same class name, same discipline names).
+
 function toggleDisc(el) {
   const name = el.textContent.trim();
   if (disciplineChecklists[name]) {
@@ -249,16 +258,16 @@ function updateDisciplineProgress() {
   const badge = document.getElementById('disc-progress');
   if (!badge) return;
   const total = Object.keys(disciplineChecklists).length;
-  const done = document.querySelectorAll('.disc-chip.completed').length;
+  const done = document.querySelectorAll('#disc-wrap .disc-chip.completed').length;
   badge.textContent = done + ' / ' + total + ' checked';
 }
 // --------------------------------------------------------------------------
 // Restore checklistAnswers + chip UI state from a resumed draft's saved
-// checklist_data (used by resumeDraft()).
+// checklist_data (used by resumeDraft()). Scoped to #disc-wrap only.
 // --------------------------------------------------------------------------
 function restoreChecklistAnswers(data) {
   checklistAnswers = data && typeof data === 'object' ? data : {};
-  document.querySelectorAll('.disc-chip').forEach(chip => {
+  document.querySelectorAll('#disc-wrap .disc-chip').forEach(chip => {
     const name = chip.textContent.trim();
     const answers = checklistAnswers[name];
     const hasAnyAnswer = answers && Object.values(answers).some(a => a && a.answer);
@@ -414,6 +423,7 @@ function buildPayload(observationsPayload, status) {
     project_architect: getVal('project-architect'),
     project_coordinator: getVal('project-coordinator'),
     checklist_data: checklistAnswers,
+    client_requirement: getVal('client-requirement') || null,
     observations: observationsPayload,
     status: status || 'submitted'
   };
@@ -589,6 +599,7 @@ async function resumeDraft(id) {
     document.getElementById('visit-time').value = data.visit_time || '';
     document.getElementById('project-architect').value = data.project_architect || '';
     document.getElementById('project-coordinator').value = data.project_coordinator || '';
+    document.getElementById('client-requirement').value = data.client_requirement || '';
 
     restoreChecklistAnswers(data.checklist_data || {});
 
@@ -994,7 +1005,7 @@ function triggerPhoto(id) {
 function closePhotoSheet() {
   document.getElementById('photoSheet').classList.remove('open');
 }
- 
+
 function choosePhotoSource(source) {
   closePhotoSheet();
   if (source === 'camera') {
@@ -1282,7 +1293,7 @@ function isFormValid() {
   for (const rid of REQUIRED_MAIN_FIELDS) {
     if (!getVal(rid)) return false;
   }
-  const anyDiscipline = document.querySelectorAll('.disc-chip.active, .disc-chip.completed').length > 0;
+  const anyDiscipline = document.querySelectorAll('#disc-wrap .disc-chip.active, #disc-wrap .disc-chip.completed').length > 0;
   if (!anyDiscipline) return false;
   for (const id of Object.keys(obsData)) {
     if (!isObsValid(id)) return false;
@@ -1306,7 +1317,7 @@ function hasAnyPendingData() {
       if (el.value && el.value.trim()) return true;
     }
   }
-  if (document.querySelectorAll('.disc-chip.active, .disc-chip.completed').length > 0) return true;
+  if (document.querySelectorAll('#disc-wrap .disc-chip.active, #disc-wrap .disc-chip.completed').length > 0) return true;
   for (const id of Object.keys(obsData)) {
     if (obsData[id].severity) return true;
     if (obsData[id].photos && obsData[id].photos.length > 0) return true;

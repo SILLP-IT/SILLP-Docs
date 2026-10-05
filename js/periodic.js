@@ -24,6 +24,114 @@ let periodicCurrentDraftId = null;   // set when resuming a pending draft; null 
 let periodicPollInterval = null;
 
 // --------------------------------------------------------------------------
+// Discipline checklist — OPTIONAL here (unlike Architectural, where it's
+// compulsory). Own state + own modal (#perChecklistModal), completely
+// separate from Architectural's checklistAnswers/#checklistModal in
+// script.js (left untouched) — reuses the shared disciplineChecklists
+// question bank defined there (script.js loads before this file).
+// Never gates isPeriodicFormValid()/Submit — filling it, or not, is always
+// fine.
+// --------------------------------------------------------------------------
+let periodicChecklistAnswers = {};
+let currentPeriodicChecklistChip = null;
+
+function togglePeriodicDisc(el) {
+  const name = el.textContent.trim();
+  if (disciplineChecklists[name]) {
+    currentPeriodicChecklistChip = el;
+    openPeriodicChecklist(name);
+  } else {
+    el.classList.toggle('active');
+  }
+  updatePeriodicSubmitState();
+}
+
+function openPeriodicChecklist(name) {
+  const questions = disciplineChecklists[name];
+  if (!questions) return;
+  if (!periodicChecklistAnswers[name]) periodicChecklistAnswers[name] = {};
+  document.getElementById('perChecklistTitle').textContent = name + ' — Checklist';
+  const body = document.getElementById('perChecklistBody');
+  body.innerHTML = questions.map((q, idx) => {
+    if (!periodicChecklistAnswers[name][idx]) periodicChecklistAnswers[name][idx] = {};
+    periodicChecklistAnswers[name][idx].question = q;
+    const saved = periodicChecklistAnswers[name][idx] || {};
+    return `
+      <div class="check-item">
+        <p class="check-q">${idx + 1}. ${q}</p>
+        <div class="check-yn">
+          <button class="yn-btn ${saved.answer === 'Yes' ? 'active-yes' : ''}" onclick="setPeriodicCheckAnswer('${name}', ${idx}, 'Yes', this)">Yes</button>
+          <button class="yn-btn ${saved.answer === 'No' ? 'active-no' : ''}" onclick="setPeriodicCheckAnswer('${name}', ${idx}, 'No', this)">No</button>
+        </div>
+        <input type="text" class="check-remarks" placeholder="Remarks (optional)" value="${saved.remarks || ''}" oninput="setPeriodicCheckRemarks('${name}', ${idx}, this.value)">
+      </div>
+    `;
+  }).join('');
+  updatePeriodicChecklistDoneState();
+  document.getElementById('perChecklistModal').classList.add('open');
+}
+
+function closePeriodicChecklist() {
+  document.getElementById('perChecklistModal').classList.remove('open');
+}
+
+function setPeriodicCheckAnswer(name, idx, val, btn) {
+  if (!periodicChecklistAnswers[name]) periodicChecklistAnswers[name] = {};
+  if (!periodicChecklistAnswers[name][idx]) periodicChecklistAnswers[name][idx] = {};
+  periodicChecklistAnswers[name][idx].answer = val;
+  const row = btn.closest('.check-yn');
+  row.querySelectorAll('.yn-btn').forEach(b => b.classList.remove('active-yes', 'active-no'));
+  btn.classList.add(val === 'Yes' ? 'active-yes' : 'active-no');
+  updatePeriodicChecklistDoneState();
+}
+
+function setPeriodicCheckRemarks(name, idx, val) {
+  if (!periodicChecklistAnswers[name]) periodicChecklistAnswers[name] = {};
+  if (!periodicChecklistAnswers[name][idx]) periodicChecklistAnswers[name][idx] = {};
+  periodicChecklistAnswers[name][idx].remarks = val;
+}
+
+function updatePeriodicChecklistDoneState() {
+  const btn = document.getElementById('perChecklistDoneBtn');
+  if (!btn || !currentPeriodicChecklistChip) return;
+  const name = currentPeriodicChecklistChip.textContent.trim();
+  const answers = periodicChecklistAnswers[name] || {};
+  const anyAnswered = Object.values(answers).some(a => a && a.answer);
+  btn.disabled = !anyAnswered;
+}
+
+function completePeriodicChecklist() {
+  if (currentPeriodicChecklistChip) {
+    currentPeriodicChecklistChip.classList.add('completed');
+  }
+  closePeriodicChecklist();
+  updatePeriodicSubmitState();
+}
+
+function removePeriodicChecklist() {
+  if (currentPeriodicChecklistChip) {
+    const name = currentPeriodicChecklistChip.textContent.trim();
+    delete periodicChecklistAnswers[name];
+    currentPeriodicChecklistChip.classList.remove('completed');
+  }
+  closePeriodicChecklist();
+  updatePeriodicSubmitState();
+}
+
+// Restore periodicChecklistAnswers + chip UI state from a resumed draft's
+// saved checklist_data. Scoped to #per-disc-wrap only.
+function restorePeriodicChecklistAnswers(data) {
+  periodicChecklistAnswers = data && typeof data === 'object' ? data : {};
+  document.querySelectorAll('#per-disc-wrap .disc-chip').forEach(chip => {
+    const name = chip.textContent.trim();
+    const answers = periodicChecklistAnswers[name];
+    const hasAnyAnswer = answers && Object.values(answers).some(a => a && a.answer);
+    chip.classList.toggle('completed', !!hasAnyAnswer);
+    chip.classList.remove('active');
+  });
+}
+
+// --------------------------------------------------------------------------
 // Photo capture (flat list — not grouped by observation)
 // --------------------------------------------------------------------------
 function triggerPeriodicPhoto() {
@@ -112,10 +220,11 @@ function isPeriodicFormValid() {
 
 // --------------------------------------------------------------------------
 // hasAnyPeriodicPendingData — much looser than isPeriodicFormValid(): true
-// the moment the person has entered ANYTHING at all (any single field, or
-// a photo). Used only to gate the "Save to Pending" button, so a
-// barely-started visit can still be saved and resumed later — unlike
-// Submit, which needs the full form to be valid.
+// the moment the person has entered ANYTHING at all (any single field, a
+// photo, or the optional discipline checklist / client requirement). Used
+// only to gate the "Save to Pending" button, so a barely-started visit can
+// still be saved and resumed later — unlike Submit, which needs the full
+// form to be valid.
 // --------------------------------------------------------------------------
 function hasAnyPeriodicPendingData() {
   const root = document.getElementById('tab-periodic');
@@ -126,6 +235,7 @@ function hasAnyPeriodicPendingData() {
     }
   }
   if (periodicPhotos.length > 0) return true;
+  if (document.querySelectorAll('#per-disc-wrap .disc-chip.active, #per-disc-wrap .disc-chip.completed').length > 0) return true;
   return false;
 }
 
@@ -190,6 +300,8 @@ visit_time: periodicGetVal('per-visit-time'),
     prepared_by: periodicGetVal('per-prepared-by'),
     progress_notes: periodicGetVal('per-progress-notes'),
     pending_clarifications: periodicGetVal('per-pending-clarifications') || null,
+    checklist_data: periodicChecklistAnswers,
+    client_requirement: periodicGetVal('per-client-requirement') || null,
     photos: photoUrls,
     status: status || 'submitted'
   };
@@ -360,6 +472,9 @@ async function resumePeriodicDraft(id) {
     document.getElementById('per-prepared-by').value = data.prepared_by || '';
     document.getElementById('per-progress-notes').value = data.progress_notes || '';
     document.getElementById('per-pending-clarifications').value = data.pending_clarifications || '';
+    document.getElementById('per-client-requirement').value = data.client_requirement || '';
+
+    restorePeriodicChecklistAnswers(data.checklist_data || {});
 
        periodicPhotos = Array.isArray(data.photos)
       ? data.photos.map(p => {
@@ -427,7 +542,7 @@ async function confirmPeriodicSubmit() {
       if (error) throw error;
       visitId = inserted[0].id;
     }
- 
+
     periodicCurrentVisitId = visitId;
     startPeriodicReportWait();
 

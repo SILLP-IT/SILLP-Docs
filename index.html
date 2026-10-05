@@ -84,7 +84,7 @@
   </div>
   <!-- Project Details -->
   <div class="section">
-    <div class="section-hdr">  
+    <div class="section-hdr">
       <div class="bar"></div>
       <svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Z"/><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 11h6M9 15h4"/></svg>
       <span class="sec-label">Project details</span>
@@ -148,6 +148,10 @@
         <div class="disc-chip" onclick="toggleDisc(this)">External works</div>
         <div class="disc-chip" onclick="toggleDisc(this)">Safety</div>
         <div class="disc-chip" onclick="toggleDisc(this)">Architecture</div>
+      </div>
+      <div class="field" style="margin-top:14px;">
+        <label>Client requirement <span style="text-transform:none;font-weight:400;">(optional)</span></label>
+        <textarea id="client-requirement" placeholder="Any specific requirement communicated by the client (optional)"></textarea>
       </div>
     </div>
   </div>
@@ -342,6 +346,41 @@
     </div>
   </div>
 
+  <!-- Disciplines (optional) -->
+  <div class="section">
+    <div class="section-hdr">
+      <div class="bar"></div>
+      <svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5M3 8v10M21 8v10"/></svg>
+      <span class="sec-label">Disciplines inspected <span style="text-transform:none;font-weight:400;">(optional)</span></span>
+    </div>
+    <div class="section-body">
+      <div class="disc-wrap" id="ma-disc-wrap">
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Block Marking</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Brick Marking</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Finishes</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Mivan Slab Check</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Plinth Check Villas</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Projection Slab Check</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Ramp Check</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Slab Check Villas</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Terrace Mivan</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Plumb &amp; Fire</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Structural</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Civil</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">MEP</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Landscape</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">External works</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Safety</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Architecture</div>
+      </div>
+      <p class="field-hint" style="margin-top:8px;">Optional — only fill this in if a discipline checklist is relevant for this visit.</p>
+      <div class="field" style="margin-top:14px;">
+        <label>Client requirement <span style="text-transform:none;font-weight:400;">(optional)</span></label>
+        <textarea id="ma-client-requirement" placeholder="Any specific requirement communicated by the client (optional)"></textarea>
+      </div>
+    </div>
+  </div>
+
   <!-- Observations -->
   <div class="section">
     <div class="section-hdr">
@@ -437,6 +476,21 @@
   </div>
 </div>
 
+<!-- Discipline checklist modal (multi-aspect — own instance, own state) -->
+<div class="modal-overlay" id="maChecklistModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span id="maChecklistTitle">Checklist</span>
+      <button class="modal-close" onclick="closeMaChecklist()">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="maChecklistBody"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="removeMaChecklist()">Remove</button>
+      <button class="btn-copy" id="maChecklistDoneBtn" onclick="completeMaChecklist()">Done</button>
+    </div>
+  </div>
+</div>
+
 </div>
 <!-- END TAB 2: tab-multiple-issue -->
 
@@ -495,6 +549,41 @@
     </div>
   </div>
 
+  <!-- Disciplines (optional) -->
+  <div class="section">
+    <div class="section-hdr">
+      <div class="bar"></div>
+      <svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5M3 8v10M21 8v10"/></svg>
+      <span class="sec-label">Disciplines inspected <span style="text-transform:none;font-weight:400;">(optional)</span></span>
+    </div>
+    <div class="section-body">
+      <div class="disc-wrap" id="per-disc-wrap">
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Block Marking</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Brick Marking</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Finishes</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Mivan Slab Check</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Plinth Check Villas</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Projection Slab Check</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Ramp Check</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Slab Check Villas</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Terrace Mivan</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Plumb &amp; Fire</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Structural</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Civil</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">MEP</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Landscape</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">External works</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Safety</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Architecture</div>
+      </div>
+      <p class="field-hint" style="margin-top:8px;">Optional — only fill this in if a discipline checklist is relevant for this visit.</p>
+      <div class="field" style="margin-top:14px;">
+        <label>Client requirement <span style="text-transform:none;font-weight:400;">(optional)</span></label>
+        <textarea id="per-client-requirement" placeholder="Any specific requirement communicated by the client (optional)"></textarea>
+      </div>
+    </div>
+  </div>
+
   <!-- Progress -->
   <div class="section">
     <div class="section-hdr">
@@ -527,7 +616,7 @@
       <p class="field-hint">Add as many photos as needed for this visit.</p>
     </div>
   </div>
- 
+
   <div class="site-footer">
     <p>STUDIO INFINITE LLP &nbsp; &nbsp; </p>
   </div>
@@ -563,7 +652,7 @@
     </div>
   </div>
 </div>
- 
+
 <!-- Export bar (periodic) -->
 <div class="export-bar">
   <div class="export-inner" style="display:flex; gap:10px;">
@@ -584,7 +673,7 @@
   <div class="photo-sheet" onclick="event.stopPropagation()">
     <button class="photo-sheet-btn" onclick="choosePeriodicPhotoSource('camera')">
       <span class="photo-sheet-ico">&#128247;</span> Take Photo
-    </button>  
+    </button>
     <button class="photo-sheet-btn" onclick="choosePeriodicPhotoSource('gallery')">
       <span class="photo-sheet-ico">&#128193;</span> Choose from Gallery
     </button>
@@ -600,6 +689,21 @@
     <div class="confirm-actions">
       <button class="btn-cancel" onclick="closePeriodicConfirm()">Cancel</button>
       <button class="btn-confirm" onclick="confirmPeriodicSubmit()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Discipline checklist modal (periodic — own instance, own state) -->
+<div class="modal-overlay" id="perChecklistModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span id="perChecklistTitle">Checklist</span>
+      <button class="modal-close" onclick="closePeriodicChecklist()">&#x2715;</button>
+    </div>
+    <div class="modal-body" id="perChecklistBody"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="removePeriodicChecklist()">Remove</button>
+      <button class="btn-copy" id="perChecklistDoneBtn" onclick="completePeriodicChecklist()">Done</button>
     </div>
   </div>
 </div>
@@ -627,8 +731,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/supabase-client.js?v=3"></script>
 <script src="js/tabs.js?v=3"></script>
-<script src="js/script.js?v=7"></script>
-<script src="js/periodic.js?v=4"></script>
-<script src="js/multi-aspect.js?v=3"></script>
+<script src="js/script.js?v=8"></script>
+<script src="js/periodic.js?v=5"></script>
+<script src="js/multi-aspect.js?v=4"></script>
 </body>
 </html>

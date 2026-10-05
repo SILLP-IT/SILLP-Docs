@@ -27,6 +27,113 @@ let maCurrentVisitId = null;   // set once inserted/updated, used for the report
 let maPollInterval = null;
 
 // --------------------------------------------------------------------------
+// Discipline checklist — OPTIONAL here (unlike Architectural, where it's
+// compulsory). Own state + own modal (#maChecklistModal), completely
+// separate from Architectural's checklistAnswers/#checklistModal in
+// script.js (left untouched) — reuses the shared disciplineChecklists
+// question bank defined there (script.js loads before this file).
+// Never gates isMaFormValid()/Submit — filling it, or not, is always fine.
+// --------------------------------------------------------------------------
+let maChecklistAnswers = {};
+let currentMaChecklistChip = null;
+
+function toggleMaDisc(el) {
+  const name = el.textContent.trim();
+  if (disciplineChecklists[name]) {
+    currentMaChecklistChip = el;
+    openMaChecklist(name);
+  } else {
+    el.classList.toggle('active');
+  }
+  updateMaSubmitState();
+}
+
+function openMaChecklist(name) {
+  const questions = disciplineChecklists[name];
+  if (!questions) return;
+  if (!maChecklistAnswers[name]) maChecklistAnswers[name] = {};
+  document.getElementById('maChecklistTitle').textContent = name + ' — Checklist';
+  const body = document.getElementById('maChecklistBody');
+  body.innerHTML = questions.map((q, idx) => {
+    if (!maChecklistAnswers[name][idx]) maChecklistAnswers[name][idx] = {};
+    maChecklistAnswers[name][idx].question = q;
+    const saved = maChecklistAnswers[name][idx] || {};
+    return `
+      <div class="check-item">
+        <p class="check-q">${idx + 1}. ${q}</p>
+        <div class="check-yn">
+          <button class="yn-btn ${saved.answer === 'Yes' ? 'active-yes' : ''}" onclick="setMaCheckAnswer('${name}', ${idx}, 'Yes', this)">Yes</button>
+          <button class="yn-btn ${saved.answer === 'No' ? 'active-no' : ''}" onclick="setMaCheckAnswer('${name}', ${idx}, 'No', this)">No</button>
+        </div>
+        <input type="text" class="check-remarks" placeholder="Remarks (optional)" value="${saved.remarks || ''}" oninput="setMaCheckRemarks('${name}', ${idx}, this.value)">
+      </div>
+    `;
+  }).join('');
+  updateMaChecklistDoneState();
+  document.getElementById('maChecklistModal').classList.add('open');
+}
+
+function closeMaChecklist() {
+  document.getElementById('maChecklistModal').classList.remove('open');
+}
+
+function setMaCheckAnswer(name, idx, val, btn) {
+  if (!maChecklistAnswers[name]) maChecklistAnswers[name] = {};
+  if (!maChecklistAnswers[name][idx]) maChecklistAnswers[name][idx] = {};
+  maChecklistAnswers[name][idx].answer = val;
+  const row = btn.closest('.check-yn');
+  row.querySelectorAll('.yn-btn').forEach(b => b.classList.remove('active-yes', 'active-no'));
+  btn.classList.add(val === 'Yes' ? 'active-yes' : 'active-no');
+  updateMaChecklistDoneState();
+}
+
+function setMaCheckRemarks(name, idx, val) {
+  if (!maChecklistAnswers[name]) maChecklistAnswers[name] = {};
+  if (!maChecklistAnswers[name][idx]) maChecklistAnswers[name][idx] = {};
+  maChecklistAnswers[name][idx].remarks = val;
+}
+
+function updateMaChecklistDoneState() {
+  const btn = document.getElementById('maChecklistDoneBtn');
+  if (!btn || !currentMaChecklistChip) return;
+  const name = currentMaChecklistChip.textContent.trim();
+  const answers = maChecklistAnswers[name] || {};
+  const anyAnswered = Object.values(answers).some(a => a && a.answer);
+  btn.disabled = !anyAnswered;
+}
+
+function completeMaChecklist() {
+  if (currentMaChecklistChip) {
+    currentMaChecklistChip.classList.add('completed');
+  }
+  closeMaChecklist();
+  updateMaSubmitState();
+}
+
+function removeMaChecklist() {
+  if (currentMaChecklistChip) {
+    const name = currentMaChecklistChip.textContent.trim();
+    delete maChecklistAnswers[name];
+    currentMaChecklistChip.classList.remove('completed');
+  }
+  closeMaChecklist();
+  updateMaSubmitState();
+}
+
+// Restore maChecklistAnswers + chip UI state from a resumed draft's saved
+// checklist_data. Scoped to #ma-disc-wrap only.
+function restoreMaChecklistAnswers(data) {
+  maChecklistAnswers = data && typeof data === 'object' ? data : {};
+  document.querySelectorAll('#ma-disc-wrap .disc-chip').forEach(chip => {
+    const name = chip.textContent.trim();
+    const answers = maChecklistAnswers[name];
+    const hasAnyAnswer = answers && Object.values(answers).some(a => a && a.answer);
+    chip.classList.toggle('completed', !!hasAnyAnswer);
+    chip.classList.remove('active');
+  });
+}
+
+// --------------------------------------------------------------------------
 // Observation cards
 // --------------------------------------------------------------------------
 function maRenderEmptyState() {
@@ -212,10 +319,11 @@ function isMaFormValid() {
 
 // --------------------------------------------------------------------------
 // hasAnyMaPendingData — much looser than isMaFormValid(): true the moment
-// the person has entered ANYTHING at all (any project-detail field, or any
-// observation with typed text or a photo). Used only to gate the "Save to
-// Pending" button, so a barely-started visit can still be saved and
-// resumed later — unlike Submit, which needs the full form to be valid.
+// the person has entered ANYTHING at all (any project-detail field, any
+// observation with typed text or a photo, or the optional discipline
+// checklist / client requirement). Used only to gate the "Save to Pending"
+// button, so a barely-started visit can still be saved and resumed later —
+// unlike Submit, which needs the full form to be valid.
 // --------------------------------------------------------------------------
 function hasAnyMaPendingData() {
   const root = document.getElementById('tab-multiple-issue');
@@ -228,6 +336,7 @@ function hasAnyMaPendingData() {
   for (const id of Object.keys(maObsData)) {
     if (maObsData[id].photos && maObsData[id].photos.length > 0) return true;
   }
+  if (document.querySelectorAll('#ma-disc-wrap .disc-chip.active, #ma-disc-wrap .disc-chip.completed').length > 0) return true;
   return false;
 }
 
@@ -303,6 +412,8 @@ function maBuildPayload(observationsPayload, status) {
     architects_present: maGetVal('ma-architects-present'),
     prepared_by: maGetVal('ma-prepared-by'),
     approved_by: maGetVal('ma-approved-by'),
+    checklist_data: maChecklistAnswers,
+    client_requirement: maGetVal('ma-client-requirement') || null,
     observations: observationsPayload,
     status: status
   };
@@ -414,7 +525,7 @@ async function maLoadPendingList() {
     const { data, error } = await supabaseClient
       .from(MA_TABLE)
       .select('id, project_name, visit_date, visit_time, created_at')
-      .eq('status', 'pending')  
+      .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -531,6 +642,9 @@ async function maResumeDraft(id) {
     document.getElementById('ma-architects-present').value = data.architects_present || '';
     document.getElementById('ma-prepared-by').value = data.prepared_by || '';
     document.getElementById('ma-approved-by').value = data.approved_by || '';
+    document.getElementById('ma-client-requirement').value = data.client_requirement || '';
+
+    restoreMaChecklistAnswers(data.checklist_data || {});
 
     const observations = Array.isArray(data.observations) ? data.observations : [];
     observations.forEach(obs => {
