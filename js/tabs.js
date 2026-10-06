@@ -93,8 +93,8 @@
   });
 
   function init() {
-    // Start on the blank landing screen with nothing else visible.
-    showLanding();
+    // Sign-in ke baad seedha Architectural form khulega — landing screen skip.
+    openReportTab('architectural');
   }
 
   if (document.readyState === 'loading') {
