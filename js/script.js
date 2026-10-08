@@ -1384,9 +1384,19 @@ function prefillCurrentTime() {
 // underneath — typing a name not in the list is always allowed — this
 // just adds a click/search-to-pick list on top, and saves genuinely new
 // names back to the table so they show up next time.
+//
+// Besides project_name, the table also holds project_code / location /
+// project_architect / project_coordinator for each project. When the user
+// PICKS a name from the dropdown (not just types one), those fields are
+// looked up and auto-filled into whichever form fields that report type
+// maps them to (see the `fillMap` passed at each initProjectAutocomplete
+// call site below / in periodic.js / in multi-aspect.js). Typing a name
+// freely, without picking it from the list, never touches those fields.
 // ==========================================================================
 const PROJECTS_TABLE = 'projects';
+const PROJECTS_SELECT_COLUMNS = 'project_name, project_code, location, project_architect, project_coordinator';
 let cachedProjectNames = null;
+let cachedProjectRecords = null; // Map: lowercased project_name -> full record
 let projectListLoadPromise = null;
 
 async function loadProjectNames() {
@@ -1396,13 +1406,19 @@ async function loadProjectNames() {
     try {
       const { data, error } = await supabaseClient
         .from(PROJECTS_TABLE)
-        .select('project_name')
+        .select(PROJECTS_SELECT_COLUMNS)
         .order('project_name', { ascending: true });
       if (error) throw error;
-      cachedProjectNames = (data || []).map(r => r.project_name).filter(Boolean);
+      const rows = data || [];
+      cachedProjectNames = rows.map(r => r.project_name).filter(Boolean);
+      cachedProjectRecords = new Map();
+      rows.forEach(r => {
+        if (r.project_name) cachedProjectRecords.set(r.project_name.toLowerCase(), r);
+      });
     } catch (err) {
       console.error('Failed to load project list:', err);
       cachedProjectNames = [];
+      cachedProjectRecords = new Map();
     }
     return cachedProjectNames;
   })();
@@ -1423,16 +1439,24 @@ async function ensureProjectInList(name) {
       if (error.code !== '23505') throw error;
     } else {
       cachedProjectNames.push(trimmed);
+      cachedProjectRecords.set(trimmed.toLowerCase(), { project_name: trimmed });
     }
   } catch (err) {
     console.error('Could not add new project to the list:', err);
   }
 }
 
-function initProjectAutocomplete(inputId, listId) {
+// fillMap: optional object like { project_code: 'project-no', location: 'location',
+// project_architect: 'project-architect', project_coordinator: 'project-coordinator' }
+// — maps a projects-table column to the id of the field it should fill on
+// THIS form. Omit a key (or the whole param) to skip auto-filling it — e.g.
+// periodic/multi-aspect have no "project coordinator" field, so that key is
+// just left out of their fillMap.
+function initProjectAutocomplete(inputId, listId, fillMap) {
   const input = document.getElementById(inputId);
   const list = document.getElementById(listId);
   if (!input || !list) return;
+  const map = fillMap || {};
 
   function render(filterText) {
     const q = (filterText || '').trim().toLowerCase();
@@ -1448,6 +1472,21 @@ function initProjectAutocomplete(inputId, listId) {
     list.classList.add('open');
   }
 
+  function applyProjectDetails(name) {
+    const record = (cachedProjectRecords || new Map()).get((name || '').trim().toLowerCase());
+    if (!record) return;
+    Object.keys(map).forEach(column => {
+      const fieldId = map[column];
+      if (!fieldId) return;
+      const field = document.getElementById(fieldId);
+      if (!field) return;
+      // Only overwrite when the lookup actually has a value for this
+      // project — never blank out a field the user already typed into
+      // just because this particular project has no data for that column.
+      if (record[column]) field.value = record[column];
+    });
+  }
+
   input.addEventListener('focus', async () => {
     await loadProjectNames();
     render(input.value);
@@ -1460,6 +1499,7 @@ function initProjectAutocomplete(inputId, listId) {
     list.classList.remove('open');
     input.dispatchEvent(new Event('input'));
     input.dispatchEvent(new Event('change'));
+    applyProjectDetails(item.textContent);
   });
   input.addEventListener('blur', () => {
     setTimeout(() => list.classList.remove('open'), 150);
@@ -1471,4 +1511,9 @@ prefillCurrentTime();
 updateSubmitState();
 loadPendingList();
 loadProjectNames();
-initProjectAutocomplete('proj-name', 'proj-name-list');
+initProjectAutocomplete('proj-name', 'proj-name-list', {
+  project_code: 'project-no',
+  location: 'location',
+  project_architect: 'project-architect',
+  project_coordinator: 'project-coordinator'
+});

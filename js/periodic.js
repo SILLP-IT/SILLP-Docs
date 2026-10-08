@@ -758,4 +758,10 @@ renderPeriodicPhotoGrid();
 periodicPrefillCurrentTime();
 updatePeriodicSubmitState();
 loadPeriodicPendingList();
-initProjectAutocomplete('per-project-name', 'per-project-name-list');
+// No "project coordinator" field on the periodic form — that key is just
+// left out of the map, so it's never looked up/filled here.
+initProjectAutocomplete('per-project-name', 'per-project-name-list', {
+  project_code: 'per-project-code',
+  location: 'per-site-address',
+  project_architect: 'per-project-architect'
+});

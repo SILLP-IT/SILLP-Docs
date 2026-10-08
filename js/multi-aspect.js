@@ -879,4 +879,13 @@ maRenderEmptyState();
 maPrefillCurrentTime();
 updateMaSubmitState();
 maLoadPendingList();
-initProjectAutocomplete('ma-project-name', 'ma-project-name-list');
+// No "project coordinator" field on the multi-aspect form. "Architect /
+// consultants present" is mapped to project_architect as the closest
+// match — it's a free-text "Names" field so it may hold more than one
+// person; auto-fill just seeds it with the project's assigned architect,
+// the user can still add more names after.
+initProjectAutocomplete('ma-project-name', 'ma-project-name-list', {
+  project_code: 'ma-project-code',
+  location: 'ma-site-location',
+  project_architect: 'ma-architects-present'
+});
