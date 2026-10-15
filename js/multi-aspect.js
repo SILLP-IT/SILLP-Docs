@@ -407,9 +407,13 @@ function maBuildPayload(observationsPayload, status) {
     project_name: maGetVal('ma-project-name'),
     project_code: maGetVal('ma-project-code'),
     site_location: maGetVal('ma-site-location'),
+    tower_villa: maGetVal('ma-tower-villa'),
+    report_no: maGetVal('ma-report-no'),
     visit_date: maGetVal('ma-visit-date') || null,
     visit_time: maGetVal('ma-visit-time') || null,
+    project_pmc: maGetVal('ma-project-pmc'),
     architects_present: maGetVal('ma-architects-present'),
+    project_coordinator: maGetVal('ma-project-coordinator'),
     prepared_by: maGetVal('ma-prepared-by'),
     approved_by: maGetVal('ma-approved-by'),
     checklist_data: maChecklistAnswers,
@@ -637,9 +641,13 @@ async function maResumeDraft(id) {
     document.getElementById('ma-project-name').value = data.project_name || '';
     document.getElementById('ma-project-code').value = data.project_code || '';
     document.getElementById('ma-site-location').value = data.site_location || '';
+    document.getElementById('ma-tower-villa').value = data.tower_villa || '';
+    document.getElementById('ma-report-no').value = data.report_no || '';
     document.getElementById('ma-visit-date').value = data.visit_date || '';
     document.getElementById('ma-visit-time').value = data.visit_time || '';
+    document.getElementById('ma-project-pmc').value = data.project_pmc || '';
     document.getElementById('ma-architects-present').value = data.architects_present || '';
+    document.getElementById('ma-project-coordinator').value = data.project_coordinator || '';
     document.getElementById('ma-prepared-by').value = data.prepared_by || '';
     document.getElementById('ma-approved-by').value = data.approved_by || '';
     document.getElementById('ma-client-requirement').value = data.client_requirement || '';
@@ -879,13 +887,19 @@ maRenderEmptyState();
 maPrefillCurrentTime();
 updateMaSubmitState();
 maLoadPendingList();
-// No "project coordinator" field on the multi-aspect form. "Architect /
-// consultants present" is mapped to project_architect as the closest
-// match — it's a free-text "Names" field so it may hold more than one
-// person; auto-fill just seeds it with the project's assigned architect,
-// the user can still add more names after.
+// "Architect / consultants present" is mapped to project_architect as the
+// closest match — it's a free-text "Names" field so it may hold more than
+// one person; auto-fill just seeds it with the project's assigned
+// architect, the user can still add more names after. "Approved by" is
+// also filled from project_architect. "Prepared by" AND the dedicated
+// "Project co-ordinator" field (added alongside Tower/Villa, Report no.
+// and Project PMC) are both filled from project_coordinator — matching
+// the reference sample, where the same coordinator name appears both as
+// "Prepared By" in the footer and as the "PROJECT CO-ORDINATOR" row in the
+// cover table.
 initProjectAutocomplete('ma-project-name', 'ma-project-name-list', {
   project_code: 'ma-project-code',
   location: 'ma-site-location',
-  project_architect: 'ma-architects-present'
+  project_architect: ['ma-architects-present', 'ma-approved-by'],
+  project_coordinator: ['ma-prepared-by', 'ma-project-coordinator']
 });

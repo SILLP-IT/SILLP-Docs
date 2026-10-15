@@ -295,6 +295,8 @@ function buildPeriodicPayload(photoUrls, status) {
     site_address: periodicGetVal('per-site-address'),
    visit_date: periodicGetVal('per-visit-date') || null,
 visit_time: periodicGetVal('per-visit-time'),
+    project_pmc: periodicGetVal('per-project-pmc'),
+    project_coordinator: periodicGetVal('per-project-coordinator'),
     project_architect: periodicGetVal('per-project-architect'),
     site_engineer: periodicGetVal('per-site-engineer'),
     prepared_by: periodicGetVal('per-prepared-by'),
@@ -467,6 +469,8 @@ async function resumePeriodicDraft(id) {
     document.getElementById('per-project-code').value = data.project_code || '';
     document.getElementById('per-site-address').value = data.site_address || '';
     document.getElementById('per-visit-date').value = data.visit_date || '';
+    document.getElementById('per-project-pmc').value = data.project_pmc || '';
+    document.getElementById('per-project-coordinator').value = data.project_coordinator || '';
     document.getElementById('per-project-architect').value = data.project_architect || '';
     document.getElementById('per-site-engineer').value = data.site_engineer || '';
     document.getElementById('per-prepared-by').value = data.prepared_by || '';
@@ -758,10 +762,9 @@ renderPeriodicPhotoGrid();
 periodicPrefillCurrentTime();
 updatePeriodicSubmitState();
 loadPeriodicPendingList();
-// No "project coordinator" field on the periodic form — that key is just
-// left out of the map, so it's never looked up/filled here.
 initProjectAutocomplete('per-project-name', 'per-project-name-list', {
   project_code: 'per-project-code',
   location: 'per-site-address',
-  project_architect: 'per-project-architect'
+  project_architect: 'per-project-architect',
+  project_coordinator: ['per-prepared-by', 'per-project-coordinator']
 });

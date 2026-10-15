@@ -17,201 +17,110 @@ const SEV_CLASS = { 'Critical': 'sev-critical', 'Major': 'sev-major', 'Minor': '
 // Shared across all three forms: Architectural (below), and the optional,
 // namespaced checklist controllers in periodic.js / multi-aspect.js.
 const disciplineChecklists = {
-  'Block Marking': [
-    'Primary grid lines transferred correctly on site as per approved architectural drawings',
-    'Grid-to-grid dimensions verified with the latest issued drawings (GFC / IFC)',
-    'Block/tower footprint matches approved site layout and master plan',
-    'Setbacks from plot boundaries as per approved sanction drawings',
-    'Reference benchmarks (TBM) and datum levels identified and verified',
-    'Building orientation and north alignment confirmed on site',
-    'External wall lines and core walls marked accurately as per plans',
-    'Column centrelines coordinated with architectural wall alignments',
-    'Entry points, driveway edges, and access alignments marked as per drawings',
-    'Plinth outline/building envelope marked correctly on the ground',
-    'Staircase core, lift core, and service shaft positions marked as per architectural layouts',
-    'Offsets, projections, and recesses are reflected correctly in block marking',
-    'No clashes observed with site utilities, compound wall, or existing structures',
-    'Levels coordinated with road levels, site grading, and plinth levels',
-    'All dimensions cross-verified on site with control drawings',
-    'Markings clearly visible, protected, and referenced for execution',
-    'Any deviations from drawings recorded and highlighted to the client/PMC',
-    'Block marking approved for proceeding with foundations / PCC / column starters (Architectural clearance)'
+  'Block marking': [
+    'Latest approved revisions of architectural drawings verified for use on site.',
+    'Temporary benchmark (TBM) and datum levels identified on site.',
+    'Building orientation and north alignment verified on site against the approved architectural drawings.',
+    'Setbacks from plot boundaries verified against the approved sanction drawings in coordination with the PMC, surveyor, and client teams.',
+    'Block dimensions and diagonals cross-checked, with external wall lines and core wall locations verified against the approved architectural plans.',
+    'No clashes between the site boundary and existing structures.',
+    '(if any) Existing structures were checked for potential obstructions to construction execution.',
+    '(If any) Existing structures, checked for potential obstructions to excavation works.',
+    'Plinth outline and building envelope marked on the ground, with markings clearly visible, protected and maintained for execution.',
+    '(If any) Any difference greater than 10 mm must be recorded and reported to the client/PMC, with written approval before work proceeds; photographs taken as a record.'
   ],
   'Brick Marking': [
-    'Wall layout marked on slab as per latest approved architectural drawings (GFC/IFC)',
-    'Internal and external wall thickness as per approved wall schedule',
-    'Room sizes and clear internal dimensions verified as per plans',
-    'Door and window openings marked at correct locations and widths',
-    'Wall alignments coordinated with column faces and beam offsets',
-    'Shaft walls, service ducts, and wet area partitions marked as per drawings',
-    'Toilet, kitchen, and utility wall layouts match approved planning',
-    'Balcony walls, parapets, and edge offsets marked correctly',
-    'Lift lobby, staircase enclosure, and core wall positions marked correctly',
-    'Wall offsets for architectural features (recesses, niches, projections) marked',
-    'Tolerance from grid lines within acceptable architectural limits',
-    'No clashes observed with MEP sleeves, floor traps, or shaft openings',
-    'Provision for future finishes (plaster thickness, cladding build-up) considered',
-    'Alignment continuity checked with floors below (vertical stacking of walls)',
-    'Control lines and reference benchmarks clearly indicated on slab',
-    'Markings are legible, protected, and approved for execution',
-    'Deviations, if any, recorded and communicated to site/PMC',
-    'Brick marking approved to proceed with masonry works (Architectural clearance)'
-  ],
-  'Finishes': [
-    'Floor finishes (tiles / wood / stone) as per approved material and pattern',
-    'Skirting type, height, and finish matching approved drawings',
-    'Wall finishes (paint / wallpaper / veneer / panels) as per mockup',
-    'Ceiling finish and level alignment maintained uniformly',
-    'False ceiling details (profiles, grooves, shadow gaps) executed as approved',
-    'Door shutters, frames, and hardware installed as per specification',
-    'Window frames, shutters, and glass type as per approved sample',
-    'Kitchen finishes (countertop, dado, shutters) as per design',
-    'Wardrobe finishes, shutter alignment, and internal accessories',
-    'Toilet finishes — wall & floor tiles, slope, and joint quality',
-    'Sanitary fittings, CP fittings model and finish as approved',
-    'Electrical fixtures (switches, sockets, plates) alignment and finish',
-    'Light fixtures placement and finish matching lighting layout',
-    'Joints, edges, and corner finishes executed neatly',
-    'Finish transitions between materials handled properly',
-    'No visible surface defects (cracks, stains, undulations)',
-    'Mockup quality acceptable for replication in typical units'
-  ],
-  'Mivan Slab Check': [
-    'Slab layout and dimensions match architectural drawings (plan / grid reference)',
-    'Beam, column, and wall positions coordinated with architectural grid',
-    'Slab openings (staircase, lift, ducts, shafts, skylight cut-outs) provided as per drawings',
-    'Edge conditions and projections (balconies, sunshades, cornices) verified',
-    'Slab thickness and drop panels (if any) marked and checked',
-    'Alignment with previous slab / beam levels is accurate',
-    'MEP provisions (conduits, sleeves, box-outs) coordinated with slab layout',
-    'Rebar cover, placement, and spacing visually checked (architectural coordination)',
-    'No conflicts observed with partition wall alignments or openings',
-    'Formwork edges and shuttering lines are straight and clean',
-    'Worksite cleanliness and safety measures are adequate',
-    'Photographs taken for documentation'
-  ],
-  'Plinth Check Villas': [
-    'Centreline and grid markings are correctly set out as per approved architectural drawings',
-    'Plinth beam layout matches approved architectural and structural drawings',
-    'Plinth beam width and depth conform to approved drawings',
-    'Location of plinth beams aligns correctly with wall positions',
-    'External and internal wall offsets are maintained as per drawings',
-    'Finished plinth level (FPL) matches architectural specifications',
-    'Plinth level relative to surrounding ground and site slope is as per design intent',
-    'Door threshold levels and plinth cut-outs are provided as per drawings',
-    'Provision for steps, ramps, and entrance levels coordinated with architectural drawings',
-    'Service openings (plumbing sleeves, electrical conduits) provided at correct locations',
-    'Plinth beam continuity at corners and junctions is properly detailed',
-    'Alignment and straightness of plinth beam formwork checked',
-    'Beam top level is uniform and within permissible tolerances',
-    'No clashes observed between plinth beam and architectural elements',
-    'Provision for damp proof course (DPC) level is clearly maintained',
-    'Shuttering is properly fixed and cleaned prior to concreting',
-    'All architectural requirements reviewed and approved before concrete pour'
-  ],
-  'Projection Slab Check': [
-    'Grid lines are correctly marked and match approved architectural drawings',
-    'Wall thickness and dimensions conform to architectural drawings',
-    'Door and window opening sizes and locations are as per architectural drawings',
-    'Alignment and plumb of vertical surfaces are accurate',
-    'Floor-to-floor height matches architectural specifications',
-    'Beam and slab edges align with architectural drawings',
-    'Provision for architectural features (niches, offsets, design projections) is correctly incorporated',
-    'Service shaft openings and ducts match architectural layouts',
-    'Architectural cut-outs (AC ledge, balcony openings etc.) provided as per drawings',
-    'Staircase dimensions (tread, riser, width) match approved drawings',
-    'Lift lobby dimensions and openings conform with architectural plan',
-    'Parapet and balcony edge details executed as per drawings',
-    'All architectural tolerances (level, plumb, alignment) within acceptable limits',
-    'Finish allowance (for plaster/finishes) maintained where required',
-    'Architectural recesses for lighting or special features are provided',
-    'Joint locations and construction joints do not clash with architectural elements',
-    'Any design-related openings or architectural recesses are shuttered correctly before pour'
+    'Wall layout marked on slab as per latest approved architectural drawings (GFC/IFC).',
+    'Internal and external wall thicknesses verified, with alignment checked against column faces and beam offsets. (If any) Gaps between beams and lintels checked wherever applicable.',
+    'Alignment continuity checked with floors below (vertical stacking of walls).',
+    'Lift lobby, staircase enclosure, core walls, and service shaft positions marked correctly.',
+    'Internal and external wall layouts, including wet-area partitions, marked as per drawings.',
+    'Wall offsets for recesses, niches, and projections marked correctly.',
+    'Room dimensions and door/window openings and sill height as verified for correct sizes and locations.',
+    'Beam offsets in toilets checked for potential clashes with floor traps and drainage pipes, with floor levels verified in coordination with the site team.'
   ],
   'Ramp Check': [
-    'Ramp location, alignment, and extents match approved architectural drawings',
-    'Ramp slope / gradient as per drawings and local bye-laws (NBC)',
-    'Clear ramp width maintained as per approved drawings',
-    'Headroom clearance maintained throughout ramp length and turning zones',
-    'Turning radii at ramp bends comply with vehicular movement requirements',
-    'Entry and exit ramp levels coordinated with approach road and basement levels',
-    'Ramp landings and transition zones provided as per drawings',
-    'Kerbs / wheel stoppers / edge upstands provided as per architectural details',
-    'Parapet walls / guard walls / crash barriers at ramp edges as per drawings',
-    'Drainage slope and floor profile provided to avoid water stagnation',
-    'Surface finish allowance (IPS / concrete topping / epoxy / chequered finish) considered',
-    'No clash of ramp with parking bays, drive aisles, columns, or walls',
-    'Signage zones, direction markings, and wayfinding provision accounted for',
-    'Pedestrian safety zones / walkways (if any) along ramp edges provided',
-    'Expansion / construction joints aligned without impacting architectural finish',
-    'Adequate visibility at ramp entry/exit (no blind corners as per design intent)',
-    'Ramp parapet height and handrail provision (if applicable) as per drawings',
-    'Architectural tolerances (level, alignment, edge straightness) within limits',
-    'Finish interfaces at ramp–basement floor junction coordinated',
-    'All architectural openings, recesses, and edge profiles shuttered correctly before pour'
+    'Ramp location, alignment, and extent verified against the approved architectural drawings.',
+    'Ramp width, landing, slope and gradient verified against the approved architectural drawings.',
+    'Ramp turning radii and slope at bends verified as per the approved architectural drawings.',
+    'Head / vehicular clearance (2.5 m minimum from top of the ramp) maintained throughout ramp length and turning zones.',
+    'Ramp starting and ending points verified against the approved architectural drawings.',
+    'If Parapet walls / guard walls / crash barriers at ramp edges as per drawings.',
+    'No clash of ramp with parking bays, drive aisles, columns, or walls.',
+    'Gutter locations and sleeves verified against the approved architectural drawings.'
   ],
-  'Slab Check Villas': [
+  'Plinth Check (Villa)': [
+    'Plinth beam, column position and layout verified as per approved architectural and structural drawings.',
+    'External and internal wall offsets maintained as per approved drawings.',
+    'Plinth beam formwork alignment, straightness, and top-level uniformity verified as per drawings.',
+    'Plinth beam continuity at corners and junctions verified as per approved drawings.',
+    'Finished plinth level (FPL) verified as per architectural specifications.',
+    'Lift pits, tiolet sunken maintained as per the approved drawings.',
+    'Edge beams checked for coordination with PHE pipe routing and diversions.',
+    'Plinth beam checked for clashes with architectural elements.',
+    'Plinth beam sunken areas checked for clashes with footings as per the approved drawings.'
+  ],
+  'Finishes Check': [
+    'Mockup quality acceptable for replication in typical units',
+    'Ceiling finish and levels maintained, with false ceiling profiles, grooves, and shadow gaps executed as approved.',
+    'Wall finishes (paint, wallpaper, veneer, and panels) completed as per the approved mockup.',
+    'Floor finishes (tiles, wood, and stone) completed as per the approved mockup, materials, and patterns.',
+    'Skirting type, height, and finish maintained as per the approved mockup.',
+    'Door and window frames, shutters, glass, and hardware installed as per the approved mockup.',
+    'Toilet wall and floor tile finishes, tile patterns, and fixture positions maintained as per the approved mockup.',
+    'Light fixtures placement and finish matching lighting layout',
+    'Joints, edges, and corner finishes executed neatly',
+    'No visible surface defects (cracks, stains, undulations)'
+  ],
+  'Villa Slab check': [
     'Slab layout and extents match latest approved architectural drawings (GFC/IFC)',
-    'Grid lines and control dimensions verified on shuttering',
-    'Beam and slab edges aligned with architectural plans and sections',
-    'Slab thickness and drop panels (if any) as per architectural coordination drawings',
-    'Level of slab (FFL reference) coordinated with floor-to-floor heights',
-    'Openings for stairs, lifts, shafts, and ducts provided as per drawings',
-    'Balcony projections, cantilevers, and edge offsets as per architectural details',
-    'AC ledges, service ledges, and architectural cut-outs formed correctly',
-    'Parapet starter / upstand provisions at slab edges as per drawings',
-    'Alignment continuity with lower floor walls and slab edges verified',
-    'No clash of slab edges/openings with door thresholds and wall lines',
-    'Provision for waterproofing build-up and finish thickness considered (where applicable)',
-    'Construction joints located away from visible architectural edges (where feasible)',
+    'Beam and slab edges aligned with the approved architectural drawings and sections.',
     'Shuttering line straightness and edge quality acceptable for architectural finish',
-    'Ramps / slab level changes coordinated with architectural sections (if applicable)',
-    'Staircase landing levels coordinated with slab level',
+    'Openings for stairs, lifts, shafts, and ducts provided as per drawings',
+    'Slab sunken levels in toilets, kitchen, utility, and balconies maintained as per the approved drawings.',
     'Service sleeves / block-outs positioned without affecting architectural elements',
-    'All architectural profiles, recesses, and special edge details formed prior to pour',
-    'Tolerances in level and alignment within acceptable architectural limits',
-    'Slab cleared for concreting from Architectural POV (subject to closure of remarks)'
+    'Upstands, kerbs, AC ledges, service ledges, and architectural cut-outs verified against the approved architectural drawings',
+    'Balcony projections, cantilevers, and edge offsets as per architectural details',
+    'Staircase landing levels match the slab levels as per the drawings.',
+    'Slab cleared for concreting from Architectural POV'
   ],
-  'Terrace Mivan': [
-    'Grid lines and reference centrelines marked correctly as per approved architectural & structural drawings',
-    'Terrace slab layout matches approved GFC drawings (overall dimensions and setbacks)',
-    'Slab thickness and edge beam profiles as per approved drawings',
+  'Slab check tower': [
+    'Slab layout and dimensions match the approved architectural drawings.',
+    'Beam, column, and wall positions are coordinated with the architectural grid.',
+    'Slab sunken levels in toilets, kitchen, utility, and balconies maintained as per the approved drawings.',
+    'Staircase dimensions, including tread, riser, and width, match the approved shell plan.',
+    'Lift lobby dimensions and lift openings match the approved shell plan.',
+    'Slab openings for (staircase,  lift, ducts, shafts, skylight cutouts) and other service requirements are provided as per drawings.',
+    'Upstands, kerbs, AC ledges, service ledges, and architectural cut-outs verified against the approved architectural drawings',
+    '(If any) Balcony projections, sunshades, cornices, parapet edges, and other architectural projections match the approved drawings.',
+    'MEP provisions, including conduits, sleeves, and box-outs, are coordinated with the slab layout.',
+    'Rebar cover, placement, and spacing visually checked (architectural coordination)',
+    'Slab cleared for concreting from Architectural POV'
+  ],
+  'Slab check terrace': [
+    'Slab layout and dimensions match the approved architectural drawings.',
     'Parapet wall locations, thickness, and heights coordinated with drawings',
     'Upstand / kerb provisions at terrace edges and around openings provided as per details',
     'Staircase headroom and mumty/overrun slab levels as per architectural clearance requirements',
     'Lift machine room / lift overrun slab dimensions and access coordinated',
     'Shaft openings (lift, service shafts, ducts) located and sized as per GFC drawings',
-    'Rainwater outlet (RWO) locations, diameters, and invert levels coordinated with plumbing drawings',
-    'Terrace slope direction and level drops provided as per drainage design intent',
-    'Provision for waterproofing upturns at parapets, shafts, and vertical elements',
-    'Terrace finished floor level (FFL) benchmark marked and verified',
-    'Services sleeves / embedded conduits (electrical earthing, lightning arrester, solar lines) provided at correct locations',
-    'No clashes between slab edges, parapets, shafts, and architectural elements',
-    'Alignment and straightness of MIVAN formwork for slab edges and parapets checked',
-    'Edge shuttering properly fixed, cleaned, and sealed prior to concreting',
-    'Tolerance check of slab top level and parapet base level within permissible limits',
-    'Provision for future terrace elements (pergola, services platforms, solar structures, tanks if any) as per drawings',
-    'Safety features (parapet height, temporary edge protection) ensured as per site safety norms',
-    'All architectural requirements reviewed and approved before slab concrete pour'
+    'Slab cleared for concreting from Architectural POV'
   ],
-  'Plumb & Fire': [
-    'Plumbing and fire fighting layouts are set out as per approved drawings',
-    'Sleeve locations for plumbing and fire fighting services are correctly positioned',
-    'Pipe routing (vertical & horizontal) matches approved shop drawings',
-    'Pipe diameters and material specifications as per approved BOQ / drawings',
-    'Sanitary pipe slopes and gradients maintained correctly',
-    'Floor trap, gully trap, and clean-out locations as per drawings',
-    'Water supply pipe routing and pressure line provisions confirmed',
-    'Fire fighting riser shaft size and location as per approved drawings',
-    'Fire fighting pipe sleeves and openings coordinated with structure',
-    'Position of valves (sluice, butterfly, NRV, control valves) as per drawings',
-    'Location of fire hose reel, landing valve, and hydrant points verified',
-    'Clearance maintained between plumbing, fire fighting, and structural elements',
-    'Pipe supports, clamps, and hanger provisions planned correctly',
-    'No clashes observed with architectural or structural elements',
-    'Provision for waterproofing around pipe sleeves and cut-outs confirmed',
-    'Concealed services coordinated with architectural finishes',
-    'All required openings and block-outs provided before slab / wall casting'
+  'Mivan Check (wall and Slab)': [
+    'Wall and slab shuttering layout matches the latest approved architectural drawings (GFC/IFC)',
+    'Wall thicknesses&positions verified as per the approved drawings.',
+    'Door, window, and ventilator openings are provided at the approved sizes, locations, and alignments as per the architectural drawings.',
+    'Wall, column, and beam alignments are maintained as per the approved architectural layout.',
+    'Toilet, kitchen, utility, and balcony sunken slabs are provided at the approved locations and levels.',
+    'Shuttering joints are properly aligned and closed, and the formwork surfaces are clean and free from debris before casting.',
+    'Water supply and drainage pipe grooves are provided at the approved locations and routes as per the drawings.',
+    '(If any) niches, architectural groves verified as per the approved architectural drawing',
+    'Rain drip mould verified against the approved architectural drawings, wherever applicable.',
+    'Electrical modular locations and mounting heights are as per the approved electrical drawings.',
+    'DB Box, Junction box and light points locations and mounting heights are as per the approved electrical drawings.',
+    'Shuttering joints checked for clashes with electrical conduits, wherever applicable.',
+    'Firefighting pipe routing and sleeve locations verified against the approved drawings.',
+    'Mivan shuttering is checked and found satisfactory from an architectural perspective for concrete casting, subject to structural and MEP clearances.'
   ]
 };
 
@@ -1449,9 +1358,11 @@ async function ensureProjectInList(name) {
 // fillMap: optional object like { project_code: 'project-no', location: 'location',
 // project_architect: 'project-architect', project_coordinator: 'project-coordinator' }
 // — maps a projects-table column to the id of the field it should fill on
-// THIS form. Omit a key (or the whole param) to skip auto-filling it — e.g.
-// periodic/multi-aspect have no "project coordinator" field, so that key is
-// just left out of their fillMap.
+// THIS form. Omit a key (or the whole param) to skip auto-filling it. A
+// value can also be an ARRAY of field ids when one column should fill more
+// than one field on the same form (e.g. multi-aspect's "Approved by" is
+// filled from project_architect, same as its "Architect / consultants
+// present" field).
 function initProjectAutocomplete(inputId, listId, fillMap) {
   const input = document.getElementById(inputId);
   const list = document.getElementById(listId);
@@ -1476,14 +1387,17 @@ function initProjectAutocomplete(inputId, listId, fillMap) {
     const record = (cachedProjectRecords || new Map()).get((name || '').trim().toLowerCase());
     if (!record) return;
     Object.keys(map).forEach(column => {
-      const fieldId = map[column];
-      if (!fieldId) return;
-      const field = document.getElementById(fieldId);
-      if (!field) return;
+      const fieldIds = map[column];
+      if (!fieldIds) return;
       // Only overwrite when the lookup actually has a value for this
       // project — never blank out a field the user already typed into
       // just because this particular project has no data for that column.
-      if (record[column]) field.value = record[column];
+      if (!record[column]) return;
+      const ids = Array.isArray(fieldIds) ? fieldIds : [fieldIds];
+      ids.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) field.value = record[column];
+      });
     });
   }
 

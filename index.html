@@ -47,8 +47,10 @@
   </div>
 </div>
 
+<!-- Slim tab bar — only shown once a report form is open, to switch forms -->
 <nav class="report-tabs" id="reportTabs" style="display:none;">
   <div class="report-tabs-inner">
+    <button type="button" class="report-tab-back" id="reportTabsBack" onclick="window.showReportLanding()">&#8592; All report types</button>
     <button type="button" class="report-tab" data-tab="architectural" onclick="window.switchReportTab('architectural')">
       Architectural Site Visit Report
     </button>
@@ -129,23 +131,15 @@
     </div>
     <div class="section-body">
       <div class="disc-wrap" id="disc-wrap">
-        <div class="disc-chip" onclick="toggleDisc(this)">Block Marking</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Block marking</div>
         <div class="disc-chip" onclick="toggleDisc(this)">Brick Marking</div>
-        <div class="disc-chip" onclick="toggleDisc(this)">Finishes</div>
-        <div class="disc-chip" onclick="toggleDisc(this)">Mivan Slab Check</div>
-        <div class="disc-chip" onclick="toggleDisc(this)">Plinth Check Villas</div>
-        <div class="disc-chip" onclick="toggleDisc(this)">Projection Slab Check</div>
         <div class="disc-chip" onclick="toggleDisc(this)">Ramp Check</div>
-        <div class="disc-chip" onclick="toggleDisc(this)">Slab Check Villas</div>
-        <div class="disc-chip" onclick="toggleDisc(this)">Terrace Mivan</div>
-        <div class="disc-chip" onclick="toggleDisc(this)">Plumb &amp; Fire</div>
-        <div class="disc-chip" onclick="toggleDisc(this)">Structural</div>
-        <div class="disc-chip" onclick="toggleDisc(this)">Civil</div>
-        <div class="disc-chip" onclick="toggleDisc(this)">MEP</div>
-        <div class="disc-chip" onclick="toggleDisc(this)">Landscape</div>
-        <div class="disc-chip" onclick="toggleDisc(this)">External works</div>
-        <div class="disc-chip" onclick="toggleDisc(this)">Safety</div>
-        <div class="disc-chip" onclick="toggleDisc(this)">Architecture</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Plinth Check (Villa)</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Finishes Check</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Villa Slab check</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Slab check tower</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Slab check terrace</div>
+        <div class="disc-chip" onclick="toggleDisc(this)">Mivan Check (wall and Slab)</div>
       </div>
       <div class="field" style="margin-top:14px;">
         <label>Client requirement <span style="text-transform:none;font-weight:400;">(optional)</span></label>
@@ -328,13 +322,23 @@
           <input type="text" id="ma-site-location" placeholder="Tower B, Level 4"></div>
       </div>
       <div class="row-2">
+        <div class="field"><label>Tower / Villa</label>
+          <input type="text" id="ma-tower-villa" placeholder="e.g. Tower A, B &amp; E"></div>
+        <div class="field"><label>Report no.</label>
+          <input type="text" id="ma-report-no" placeholder="e.g. 04"></div>
+      </div>
+      <div class="row-2">
         <div class="field"><label>Date</label>
           <input type="date" id="ma-visit-date"></div>
         <div class="field"><label>Time</label>
           <input type="time" id="ma-visit-time"></div>
       </div>
+      <div class="field"><label>Project PMC / Presentative</label>
+        <input type="text" id="ma-project-pmc" placeholder="Name"></div>
       <div class="field"><label>Architect / consultants present</label>
         <input type="text" id="ma-architects-present" placeholder="Names"></div>
+      <div class="field"><label>Project co-ordinator</label>
+        <input type="text" id="ma-project-coordinator" placeholder="Name"></div>
       <div class="row-2">
         <div class="field"><label>Prepared by</label>
           <input type="text" id="ma-prepared-by" placeholder="Name"></div>
@@ -353,23 +357,15 @@
     </div>
     <div class="section-body">
       <div class="disc-wrap" id="ma-disc-wrap">
-        <div class="disc-chip" onclick="toggleMaDisc(this)">Block Marking</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Block marking</div>
         <div class="disc-chip" onclick="toggleMaDisc(this)">Brick Marking</div>
-        <div class="disc-chip" onclick="toggleMaDisc(this)">Finishes</div>ś
-        <div class="disc-chip" onclick="toggleMaDisc(this)">Mivan Slab Check</div>
-        <div class="disc-chip" onclick="toggleMaDisc(this)">Plinth Check Villas</div>
-        <div class="disc-chip" onclick="toggleMaDisc(this)">Projection Slab Check</div>
         <div class="disc-chip" onclick="toggleMaDisc(this)">Ramp Check</div>
-        <div class="disc-chip" onclick="toggleMaDisc(this)">Slab Check Villas</div>
-        <div class="disc-chip" onclick="toggleMaDisc(this)">Terrace Mivan</div>
-        <div class="disc-chip" onclick="toggleMaDisc(this)">Plumb &amp; Fire</div>
-        <div class="disc-chip" onclick="toggleMaDisc(this)">Structural</div>
-        <div class="disc-chip" onclick="toggleMaDisc(this)">Civil</div>
-        <div class="disc-chip" onclick="toggleMaDisc(this)">MEP</div>
-        <div class="disc-chip" onclick="toggleMaDisc(this)">Landscape</div>
-        <div class="disc-chip" onclick="toggleMaDisc(this)">External works</div>
-        <div class="disc-chip" onclick="toggleMaDisc(this)">Safety</div>
-        <div class="disc-chip" onclick="toggleMaDisc(this)">Architecture</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Plinth Check (Villa)</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Finishes Check</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Villa Slab check</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Slab check tower</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Slab check terrace</div>
+        <div class="disc-chip" onclick="toggleMaDisc(this)">Mivan Check (wall and Slab)</div>
       </div>
       <p class="field-hint" style="margin-top:8px;">Optional — only fill this in if a discipline checklist is relevant for this visit.</p>
       <div class="field" style="margin-top:14px;">
@@ -537,6 +533,12 @@
       <div class="field"><label>Site address</label>
         <input type="text" id="per-site-address" placeholder="Full site address"></div>
       <div class="row-2">
+        <div class="field"><label>Project PMC / presentative</label>
+          <input type="text" id="per-project-pmc" placeholder="Name"></div>
+        <div class="field"><label>Project co-ordinator</label>
+          <input type="text" id="per-project-coordinator" placeholder="Name"></div>
+      </div>
+      <div class="row-2">
         <div class="field"><label>Project architect</label>
           <input type="text" id="per-project-architect" placeholder="Name"></div>
         <div class="field"><label>Site engineer</label>
@@ -556,23 +558,15 @@
     </div>
     <div class="section-body">
       <div class="disc-wrap" id="per-disc-wrap">
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Block Marking</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Block marking</div>
         <div class="disc-chip" onclick="togglePeriodicDisc(this)">Brick Marking</div>
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Finishes</div>
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Mivan Slab Check</div>
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Plinth Check Villas</div>
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Projection Slab Check</div>
         <div class="disc-chip" onclick="togglePeriodicDisc(this)">Ramp Check</div>
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Slab Check Villas</div>
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Terrace Mivan</div>
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Plumb &amp; Fire</div>
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Structural</div>
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Civil</div>
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">MEP</div>
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Landscape</div>
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">External works</div>
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Safety</div>
-        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Architecture</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Plinth Check (Villa)</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Finishes Check</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Villa Slab check</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Slab check tower</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Slab check terrace</div>
+        <div class="disc-chip" onclick="togglePeriodicDisc(this)">Mivan Check (wall and Slab)</div>
       </div>
       <p class="field-hint" style="margin-top:8px;">Optional — only fill this in if a discipline checklist is relevant for this visit.</p>
       <div class="field" style="margin-top:14px;">
@@ -730,7 +724,7 @@
 <script src="js/supabase-client.js?v=3"></script>
 <script src="js/tabs.js?v=3"></script>
 <script src="js/script.js?v=8"></script>
-<script src="js/periodic.js?v=5"></script>
-<script src="js/multi-aspect.js?v=4"></script>
+<script src="js/periodic.js?v=6"></script>
+<script src="js/multi-aspect.js?v=5"></script>
 </body>
 </html>
